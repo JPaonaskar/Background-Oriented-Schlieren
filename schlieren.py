@@ -3,12 +3,26 @@ import cv2
 import numpy as np
 import tqdm as tqdm
 
+# display methods
 TOTAL = 'tot'
 X = 'x'
 Y = 'y'
 
-IMAGE_EXTS = ['.tif', '.jpg', '.png']
-VIDEO_EXTS = ['.avi']
+# datasets
+DATA_RAW = 'raw'
+DATA_COMPUTED = 'computed'
+DATA_DRAWN = 'drawn'
+
+# file extentions
+EXTS_IMAGE = ['.tif', '.jpg', '.png']
+EXTS_VIDEO = ['.avi']
+
+# keys
+KEY_BACKSPACE = 8
+KEY_TAB = 9
+KEY_ENTER = 13
+KEY_ESCAPE = 27
+KEY_SPACE = 32
 
 class BOS(object):
     '''
@@ -49,7 +63,7 @@ class BOS(object):
                 filepath = os.path.join(path, file)
 
                 # only care about images
-                if os.path.splitext(filepath)[1] in IMAGE_EXTS:
+                if os.path.splitext(filepath)[1] in EXTS_IMAGE:
                     # read image
                     img = cv2.imread(filepath)
 
@@ -68,7 +82,7 @@ class BOS(object):
             ext = os.path.splitext(path)[1]
 
             # if file is an image
-            if ext in IMAGE_EXTS:
+            if ext in EXTS_IMAGE:
                 # read image
                 img = cv2.imread(filepath)
 
@@ -76,7 +90,7 @@ class BOS(object):
                 data.append(img)
 
             # if file is video
-            elif ext in VIDEO_EXTS:
+            elif ext in EXTS_VIDEO:
                 # open video feed
                 cap = cv2.VideoCapture(path)
 
@@ -101,39 +115,25 @@ class BOS(object):
             
             # not a readable file type
             else:
-                raise ValueError(f'Cannot read {ext} files. File must be of the following image types: {IMAGE_EXTS} or video types: {VIDEO_EXTS}')
+                raise ValueError(f'Cannot read {ext} files. File must be of the following image types: {EXTS_IMAGE} or video types: {EXTS_VIDEO}')
             
         # not a valid path
         else:
             raise ValueError(f'path does not exist: {path}')
 
         # append data
-        if (append) and (type(self.raw) == np.ndarray):
+        if (append) and (type(self._raw) == np.ndarray):
             # match shape
-            if self.raw[0].shape != data[0].shape:
+            if self._raw[0].shape != data[0].shape:
                 # no match
-                raise ValueError(f'Expected all image to have the same shapes but got shapes {self.raw[0].shape} and {data[0].shape}')
+                raise ValueError(f'Expected all image to have the same shapes but got shapes {self._raw[0].shape} and {data[0].shape}')
 
             # append
-            self.raw = np.hstack([self.raw, np.array(data)])
+            self._raw = np.hstack([self._raw, np.array(data)])
 
         # write data
         else:
-            self.raw = np.array(data)
-
-    def write(self, path:str=None, start:int=0, stop:int=None, step:int=1) -> None:
-        '''
-        Write image or video
-
-        Args:
-            path (str) : path to save location (direcory or file) (default=None)
-            start (int) : starting frame (defult=0)
-            stop (int) : ending frame (exclusive) (defult=None)
-            step (int) : step between frames (defult=1)
-
-        Returns:
-            None
-        '''
+            self._raw = np.array(data)
 
     def compute(self, win_size:int=32, search_size:int=64, start:int=0, stop:int=None, step:int=1) -> None:
         '''
@@ -164,12 +164,71 @@ class BOS(object):
             None
         '''
 
-    def display(self) -> None:
+    def display(self, dataname:str=DATA_DRAWN) -> None:
         '''
         Display drawn data
 
         Args:
             None
+
+        Returns:
+            None
+        '''
+        # get images
+        imgs = None
+        if dataname == DATA_RAW:
+            imgs = self._raw
+        elif dataname == DATA_COMPUTED:
+            imgs = self._computed
+        elif dataname == DATA_DRAWN:
+            imgs = self._drawn
+        else:
+            ValueError(f'{dataname} in not a valid dataset')
+
+        # placeholders
+        ind = 0
+        img = imgs[ind]
+
+        # set window
+        cv2.namedWindow(dataname)
+
+        # loop
+        while True:
+            # draw frame
+            cv2.imshow(dataname, img)
+
+            # keys
+            k = cv2.waitKey(0)
+
+            # quit
+            if (k == ord('q')) or (k == KEY_ESCAPE):
+                break
+
+            # looping
+            elif k == ord('a'):
+                if ind > 0:
+                    ind -= 1
+                    img = imgs[ind]
+            elif k == ord('d'):
+                if ind < len(imgs) - 1:
+                    ind += 1
+                    img = imgs[ind]
+
+            else:
+                print('pressed:', k)
+
+        # close window
+        cv2.destroyWindow(dataname)
+
+    def write(self, path:str=None, start:int=0, stop:int=None, step:int=1) -> None:
+        '''
+        Write image or video
+
+        Args:
+            path (str) : path to save location (direcory or file) (default=None)
+            start (int) : starting frame (defult=0)
+            stop (int) : ending frame (exclusive) (defult=None)
+            step (int) : step between frames (defult=1)
 
         Returns:
             None

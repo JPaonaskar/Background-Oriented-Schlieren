@@ -2,4 +2,4 @@ import schlieren
 
 bos = schlieren.BOS()
 bos.read('PIV Challange')
-print(bos.raw.shape)
+bos.display(schlieren.DATA_RAW)
