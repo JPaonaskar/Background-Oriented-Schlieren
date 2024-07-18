@@ -1,7 +1,9 @@
 import os
 import cv2
 import numpy as np
-import tqdm as tqdm
+from tqdm import tqdm
+
+import batch_tools
 
 # display methods
 TOTAL = 'tot'
@@ -30,8 +32,6 @@ class BOS(object):
     '''
     def __init__(self) -> None:
         self._raw = None
-        self._computed_X = None
-        self._computed_Y = None
         self._computed = None
         self._drawn = None
 
@@ -41,7 +41,7 @@ class BOS(object):
 
         Args:
             path (str) : path to file (default=None)
-            append (bool) : add image to current data. only works for images (defult=False)
+            append (bool) : add image to current data. only works for images (default=False)
 
         Returns:
             None
@@ -137,52 +137,99 @@ class BOS(object):
         else:
             self._raw = np.array(data)
 
-    def compute(self, win_size:int=32, search_size:int=64, start:int=0, stop:int=None, step:int=1) -> None:
+    def compute(self, win_size:int=32, search_size:int=64, space:int=None, start:int=0, stop:int=None, step:int=1) -> None:
         '''
         Compute schlieren data
 
         Args:
             win_size (int) : search windows size (default=32)
             search_size (int) : search size (default=64)
-            start (int) : starting frame (defult=0)
-            stop (int) : ending frame (exclusive) (defult=None)
-            step (int) : step between frames (defult=1)
+            space (int) : space between referance frame. None implies use start frame (default=None)
+            start (int) : starting frame (default=0)
+            stop (int) : ending frame (exclusive) (default=None)
+            step (int) : step between frames (default=1)
 
         Returns:
             None
         '''
-        # create empty computed data if needed (top preserve old data)
-        if (type(self._computed) != np.ndarray) or (self._computed.shape != self._raw.shape):
-            self._computed = np.zeros_like(self._raw)
-
         # setup slice
         if not stop:
-            stop = len(self._raw)
+            stop = len(self._raw) - 1
+        if space:
+            stop = stop - space
 
         # slice
-        data = self._raw[start:stop:step]
+        raw_data = self._raw[start:stop:step]
+
+        # unpack shape values
+        n, h, w, _ = self._raw.shape
 
         # convert BGR to greyscale if needed
-        isBGR = len(data.shape) > 3
+        isBGR = len(raw_data.shape) > 3
         if isBGR:
-            data = np.mean(data, axis=3)
+            raw_data = np.mean(raw_data, axis=3)
 
-        ########### COMPUTE ###########
+        # slice kernals
+        if space:
+            kernals = raw_data
+            raw_data = self._raw[start+space:stop+space:step]
+        else:
+            kernals = np.expand_dims(raw_data[0], axis=0)
+            kernals = np.tile(kernals, (n, 1, 1))
 
+        # pad raw data
+        pad = search_size - win_size >> 1
 
+        empty = np.zeros((n, h + 2 * pad, w + 2 * pad))
+        empty[:, pad:h+pad, pad:w+pad] = raw_data
 
+        raw_data = empty
+        del empty
 
+        # divide into windows
+        win_x = np.arange(w // win_size)
+        win_y = np.arange(h // win_size)
 
+        # create list of coordinate pairs
+        win_coords = np.meshgrid(win_x, win_y)
+        win_coords = np.vstack([win_coords[0].flatten(), win_coords[1].flatten()])
+        win_coords = np.swapaxes(win_coords, 0, 1)
 
+        # pre-allocate data (depth is u, v, length)
+        data = np.zeros((n, len(win_y), len(win_x), 3))
 
-        # convert greyscale to BGR if needed
-        if isBGR:
-            data = np.stack([data, data, data], axis=3)
+        # itterate though sections
+        for coord in tqdm(win_coords):
+            # unpack output location
+            row = coord[1]
+            col = coord[0]
 
-        ########### COMPUTE ###########
+            # get window location
+            win_row = row * win_size
+            win_col = col * win_size
 
-        # store
-        self._computed[start:stop:step] = data
+            # pull window
+            win = kernals[:, win_row:win_row + win_size, win_col:win_col + win_size]
+
+            # pull search area
+            search = kernals[:, win_row:win_row+win_size + 2 * pad, win_col:win_col + win_size + 2 * pad]
+
+            # compute corrilation and calcualte displacements
+            corr = batch_tools.correlate(search, win)
+            u, v = batch_tools.displacement(corr)
+
+            # store calcualted values
+            data[:, row, col, 0] = u
+            data[:, row, col, 1] = v
+            data[:, row, col, 2] = 0
+
+        # create new computed data if needed
+        if (type(self._computed) != np.ndarray) or (self._computed.shape != data.shape):
+            self._computed = data
+
+        # preserve old data
+        else:
+            self._computed[start:stop:step] = data
 
     def draw(self, method:str=TOTAL, thresh:float=4.0, alpha:float=0.6, start:int=0, stop:int=None, step:int=1) -> None:
         '''
@@ -190,9 +237,9 @@ class BOS(object):
 
         Args:
             method (str) : drawing method (default=32)
-            start (int) : starting frame (defult=0)
-            stop (int) : ending frame (exclusive) (defult=None)
-            step (int) : step between frames (defult=1)
+            start (int) : starting frame (default=0)
+            stop (int) : ending frame (exclusive) (default=None)
+            step (int) : step between frames (default=1)
 
         Returns:
             None
@@ -219,15 +266,28 @@ class BOS(object):
         else:
             ValueError(f'{dataname} in not a valid dataset')
 
+        # shift unsigned 8-bit
+        imgs = imgs - np.min(imgs) # 0.0 - max
+        imgs = imgs * 255.0 / np.max(imgs) # 0.0 - 255.0
+        imgs = imgs.astype(np.uint8) # 8bit
+
         # placeholders
         ind = 0
-        img = imgs[ind]
 
         # set window
         cv2.namedWindow(dataname)
 
         # loop
         while True:
+            # load new image
+            img = imgs[ind]
+
+            # resize
+            img = cv2.resize(img, (720, 720), interpolation=cv2.INTER_NEAREST)
+
+            # draw index
+            #cv2
+
             # draw frame
             cv2.imshow(dataname, img)
 
@@ -242,11 +302,9 @@ class BOS(object):
             elif k == ord('a'):
                 if ind > 0:
                     ind -= 1
-                    img = imgs[ind]
             elif k == ord('d'):
                 if ind < len(imgs) - 1:
                     ind += 1
-                    img = imgs[ind]
 
             else:
                 print('pressed:', k)
@@ -260,9 +318,9 @@ class BOS(object):
 
         Args:
             path (str) : path to save location (direcory or file) (default=None)
-            start (int) : starting frame (defult=0)
-            stop (int) : ending frame (exclusive) (defult=None)
-            step (int) : step between frames (defult=1)
+            start (int) : starting frame (default=0)
+            stop (int) : ending frame (exclusive) (default=None)
+            step (int) : step between frames (default=1)
 
         Returns:
             None

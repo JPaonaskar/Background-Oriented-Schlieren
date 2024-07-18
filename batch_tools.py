@@ -133,7 +133,7 @@ def peak(corr:np.ndarray, precision:type=np.float32) -> tuple[np.ndarray, np.nda
     # output
     return x, y
 
-def disp(corr:np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+def displacement(corr:np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     '''
     Find the displacement at the sub pixel level
 

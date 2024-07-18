@@ -1,10 +1,3 @@
-import schlieren
-
-#bos = schlieren.BOS()
-#bos.read('PIV Challange')
-#bos.compute(start=0, stop=5)
-#bos.display(schlieren.DATA_COMPUTED)
-
 import time
 import numpy as np
 from batch_tools import *
