@@ -30,6 +30,8 @@ class BOS(object):
     '''
     def __init__(self) -> None:
         self._raw = None
+        self._computed_X = None
+        self._computed_Y = None
         self._computed = None
         self._drawn = None
 
@@ -149,6 +151,38 @@ class BOS(object):
         Returns:
             None
         '''
+        # create empty computed data if needed (top preserve old data)
+        if (type(self._computed) != np.ndarray) or (self._computed.shape != self._raw.shape):
+            self._computed = np.zeros_like(self._raw)
+
+        # setup slice
+        if not stop:
+            stop = len(self._raw)
+
+        # slice
+        data = self._raw[start:stop:step]
+
+        # convert BGR to greyscale if needed
+        isBGR = len(data.shape) > 3
+        if isBGR:
+            data = np.mean(data, axis=3)
+
+        ########### COMPUTE ###########
+
+
+
+
+
+
+
+        # convert greyscale to BGR if needed
+        if isBGR:
+            data = np.stack([data, data, data], axis=3)
+
+        ########### COMPUTE ###########
+
+        # store
+        self._computed[start:stop:step] = data
 
     def draw(self, method:str=TOTAL, thresh:float=4.0, alpha:float=0.6, start:int=0, stop:int=None, step:int=1) -> None:
         '''
