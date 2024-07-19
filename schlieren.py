@@ -1,3 +1,13 @@
+'''
+SCHLIEREN
+by Josha Paonaskar
+
+Background Oriented Schlieren constants, class, methods
+
+Resources:
+
+'''
+
 import os
 import cv2
 import numpy as np
@@ -214,7 +224,7 @@ class BOS(object):
             # pull search area
             search = kernals[:, win_row:win_row+win_size + 2 * pad, win_col:win_col + win_size + 2 * pad]
 
-            # compute corrilation and calcualte displacements
+            # compute correlation and calcualte displacements
             corr = batch_tools.correlate(search, win)
             u, v = batch_tools.displacement(corr)
 

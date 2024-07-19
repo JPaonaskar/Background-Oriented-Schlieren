@@ -1,17 +1,28 @@
+'''
+BATCH_TOOLS
+by Josha Paonaskar
+
+Batch based methods for pixel correlation and tracking
+
+Resources:
+    http://www.learnpiv.org/subPixel/
+    https://github.com/Sabrewarrior/normxcorr2-python
+'''
+
 import numpy as np
 from scipy.signal import fftconvolve
-# methods resource: http://www.learnpiv.org/subPixel/
 
-def correlate(images:np.ndarray, kernals:np.ndarray, mode:str='full') -> np.ndarray:
+def normxcorr2(images:np.ndarray, kernals:np.ndarray, mode:str='full') -> np.ndarray:
     '''
-    Correlation for batches
+    Normalized cross correlation for batches
+    Modified version of Sabrewarrior/normxcorr2-python (original code is in /normxcorr2-python) <- NOT IMPLEMENTED YET
 
     Args:
         kernals:np.ndarray : batch of kernal images
         images:np.ndarray : batch of images
 
     Returns:
-        corr (np.ndarray) : batch of corrilation values
+        corr (np.ndarray) : batch of correlation values
     '''
     # flip kernal vertically (axis=1) and horizontally (axis=2)
     kernals = np.flip(np.flip(kernals, axis=1), axis=2)
@@ -45,7 +56,7 @@ def gaussian(s:np.ndarray) -> float:
     Compute batched three point guassian
 
     Args:
-        s (np.ndarray) : values (corrilation in context)
+        s (np.ndarray) : values (correlation in context)
 
     Returns:
         dr (float) : required pixel shift to approximate peak
@@ -68,7 +79,7 @@ def peak(corr:np.ndarray, precision:type=np.float32) -> tuple[np.ndarray, np.nda
     Find batched peak location at the sub pixel level
 
     Args:
-        corr (np.ndarray) : batch of corrilation values
+        corr (np.ndarray) : batch of correlation values
         precision (type) : float type to use
 
     Returns:
@@ -103,7 +114,7 @@ def peak(corr:np.ndarray, precision:type=np.float32) -> tuple[np.ndarray, np.nda
     xx = np.vstack([x-1, x, x+1])
     xy = np.tile(y, (3, 1))
 
-    # x corrilation values
+    # x correlation values
     xs = corr[xi, xy, xx].astype(precision)
     xs = np.swapaxes(xs, 0, 1)
     
@@ -115,7 +126,7 @@ def peak(corr:np.ndarray, precision:type=np.float32) -> tuple[np.ndarray, np.nda
     yx = np.tile(x, (3, 1))
     yy = np.vstack([y-1, y, y+1])
 
-    # y corrilation values
+    # y correlation values
     ys = corr[yi, yy, yx].astype(precision)
     ys = np.swapaxes(ys, 0, 1)
     
@@ -138,7 +149,7 @@ def displacement(corr:np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     Find the displacement at the sub pixel level
 
     Args:
-        corr (np.ndarray) : batch of corrilation values
+        corr (np.ndarray) : batch of correlation values
 
     Returns:
         u (np.ndarray) : u (column) displacements

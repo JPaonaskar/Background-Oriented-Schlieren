@@ -1,3 +1,13 @@
+'''
+CORR TESTING
+by Josha Paonaskar
+
+Correlation testing to validate batch methods
+
+Resources:
+
+'''
+
 import time
 import numpy as np
 from batch_tools import *
@@ -58,7 +68,7 @@ print(b)
 
 # corrilate
 t1 = time.time()
-c = correlate(a, b, 'valid')
+c = normxcorr2(a, b, 'valid')
 print('##### C #####')
 print(c)
 
@@ -70,13 +80,13 @@ print(x, y)
 
 # convert to displacements
 t3 = time.time()
-u, v = disp(c)
+u, v = displacement(c)
 print('##### U V #####')
 print(u, v)
 
 t4 = time.time()
 
 print(f'Creation time: {1000 * (t2 - t1)} ms')
-print(f'Corrilation time: {1000 * (t2 - t1)} ms')
+print(f'Correlation time: {1000 * (t2 - t1)} ms')
 print(f'Search time peak: {1000 * (t3 - t2)} ms')
 print(f'Search time disp: {1000 * (t4 - t3)} ms')

@@ -1,3 +1,13 @@
+'''
+BOS TESTING
+by Josha Paonaskar
+
+Schlieren testing to validate batch methods
+
+Resources:
+
+'''
+
 import schlieren
 
 bos = schlieren.BOS()
