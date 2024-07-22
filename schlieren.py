@@ -164,8 +164,8 @@ class BOS(object):
         '''
         # setup slice
         if not stop:
-            stop = len(self._raw) - 1
-        if space:
+            stop = len(self._raw)
+        if space and stop - space > start:
             stop = stop - space
 
         # slice
@@ -183,14 +183,20 @@ class BOS(object):
         if space:
             kernals = raw_data
             raw_data = self._raw[start+space:stop+space:step]
+
+        # tile kernal
         else:
             kernals = np.expand_dims(raw_data[0], axis=0)
             kernals = np.tile(kernals, (n, 1, 1))
 
+        # time offset data
+        raw_data = raw_data[1:]
+        kernals = kernals[:len(kernals) - 1]
+
         # pad raw data
         pad = search_size - win_size >> 1
 
-        empty = np.zeros((n, h + 2 * pad, w + 2 * pad))
+        empty = np.zeros((n - 1, h + 2 * pad, w + 2 * pad))
         empty[:, pad:h+pad, pad:w+pad] = raw_data
 
         raw_data = empty
@@ -222,10 +228,10 @@ class BOS(object):
             win = kernals[:, win_row:win_row + win_size, win_col:win_col + win_size]
 
             # pull search area
-            search = kernals[:, win_row:win_row+win_size + 2 * pad, win_col:win_col + win_size + 2 * pad]
+            search = raw_data[:, win_row:win_row+win_size + 2 * pad, win_col:win_col + win_size + 2 * pad]
 
             # compute correlation and calcualte displacements
-            corr = batch_tools.correlate(search, win)
+            corr = batch_tools.normxcorr2(search, win)
             u, v = batch_tools.displacement(corr)
 
             # store calcualted values
@@ -241,12 +247,14 @@ class BOS(object):
         else:
             self._computed[start:stop:step] = data
 
-    def draw(self, method:str=TOTAL, thresh:float=4.0, alpha:float=0.6, start:int=0, stop:int=None, step:int=1) -> None:
+    def draw(self, method:str=TOTAL, thresh:float=5.0, alpha:float=0.6, start:int=0, stop:int=None, step:int=1) -> None:
         '''
         Draw computed data
 
         Args:
-            method (str) : drawing method (default=32)
+            method (str) : drawing method (default=TOTAL)
+            thresh (float) : value maximum (defult=5.0)
+            alpha (float) : blending between raw and computed (defult=0.6WW)
             start (int) : starting frame (default=0)
             stop (int) : ending frame (exclusive) (default=None)
             step (int) : step between frames (default=1)
