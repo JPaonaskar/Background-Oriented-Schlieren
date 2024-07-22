@@ -12,10 +12,138 @@ Resources:
 import numpy as np
 from scipy.signal import fftconvolve
 
+def conv2D(images:np.ndarray, kernals:np.ndarray, mode:str='full') -> np.ndarray:
+    '''
+    2d Convolution
+
+    Args:
+        images:np.ndarray : batch of images
+        kernals:np.ndarray : batch of kernals
+
+    Returns:
+        out (np.ndarray) : batch of convolutions
+    '''
+    # 2d convolution using scipy
+    out = fftconvolve(images, kernals, mode=mode, axes=[1, 2])
+
+    # output
+    return out
+
+def batch_subtract(images:np.ndarray, values:np.ndarray) -> np.ndarray:
+    '''
+    Add scalars accross batch
+
+    Args:
+        images:np.ndarray : batch of images
+        values:np.ndarray : batch of scalar values
+
+    Returns:
+        out (np.ndarray) : modified batch
+    '''
+    # reshape values
+    values = values.reshape((images.shape[0], 1, 1))
+    values = np.tile(values, (1, images.shape[1], images.shape[2]))
+
+    # add arrays
+    images = images - values
+
+    # output
+    return images
+
+def batch_multiply(images:np.ndarray, values:np.ndarray) -> np.ndarray:
+    '''
+    Multiply scalars accross batch
+
+    Args:
+        images:np.ndarray : batch of images
+        values:np.ndarray : batch of scalar values
+
+    Returns:
+        out (np.ndarray) : modified batch
+    '''
+    # reshape values
+    values = values.reshape((images.shape[0], 1, 1))
+    values = np.tile(values, (1, images.shape[1], images.shape[2]))
+
+    # add arrays
+    images = images * values
+
+    # output
+    return images
+
 def normxcorr2(images:np.ndarray, kernals:np.ndarray, mode:str='full') -> np.ndarray:
     '''
     Normalized cross correlation for batches
-    Modified version of Sabrewarrior/normxcorr2-python (original code is in /normxcorr2-python) <- NOT IMPLEMENTED YET
+    Modified version of Sabrewarrior/normxcorr2-python (original code is in /normxcorr2-python)
+
+    Args:
+        images:np.ndarray : batch of images
+        kernals:np.ndarray : batch of kernals
+
+    Returns:
+        corr (np.ndarray) : batch of correlation values
+    '''
+    # get means
+    kernal_means = np.mean(kernals, axis=(1, 2))
+    image_means = np.mean(images, axis=(1, 2))
+
+    # subtract means
+    kernals = batch_subtract(kernals, kernal_means)
+    images = batch_subtract(images, image_means)
+
+    # flip kernals for convolution
+    arr = np.flip(np.flip(kernals, axis=1), axis=2)
+
+    # convolution
+    out = conv2D(images, arr.conj(), mode=mode)
+
+    # normalization setup
+    kernal_ones = np.ones_like(kernals)
+    prod = np.prod(kernals.shape) / kernals.shape[0]
+    images = conv2D(np.square(images), kernal_ones, mode=mode) - np.square(conv2D(images, kernal_ones, mode=mode)) / prod
+
+    # positive values only
+    images[images < 0] = 0
+
+    # normalixe
+    kernals = np.sum(np.square(kernals), axis=(1, 2))
+    with np.errstate(divide='ignore', invalid='ignore'): 
+        out = out / np.sqrt(batch_multiply(images, kernals))
+
+    # remove divisions by zero
+    out[~np.isfinite(out)] = 0
+
+    '''
+    ### ORIGINAL CODE ###
+
+    template = template - np.mean(template)
+    image = image - np.mean(image)
+
+    a1 = np.ones(template.shape)
+    # Faster to flip up down and left right then use fftconvolve instead of scipy's correlate
+    ar = np.flipud(np.fliplr(template))
+    out = fftconvolve(image, ar.conj(), mode=mode)
+    
+    image = fftconvolve(np.square(image), a1, mode=mode) - np.square(fftconvolve(image, a1, mode=mode)) / (np.prod(template.shape))
+
+    # Remove small machine precision errors after subtraction
+    image[np.where(image < 0)] = 0
+
+    template = np.sum(np.square(template))
+    with np.errstate(divide='ignore',invalid='ignore'): 
+        out = out / np.sqrt(image * template)
+
+    # Remove any divisions by 0 or very close to 0
+    out[np.where(np.logical_not(np.isfinite(out)))] = 0
+    
+    return out
+    '''
+    
+    return out
+
+def xcorr(images:np.ndarray, kernals:np.ndarray, mode:str='full') -> np.ndarray:
+    '''
+    Cross correlation for batches
 
     Args:
         kernals:np.ndarray : batch of kernal images
