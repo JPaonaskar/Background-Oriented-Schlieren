@@ -71,7 +71,7 @@ class BOS(object):
             files = os.listdir(path)
 
             # check each one
-            for file in files:
+            for file in tqdm(files):
                 filepath = os.path.join(path, file)
 
                 # only care about images
@@ -217,7 +217,7 @@ class BOS(object):
         win_coords = np.swapaxes(win_coords, 0, 1)
 
         # pre-allocate data (depth is u, v, length)
-        data = np.zeros((n, len(win_y), len(win_x), 3))
+        data = np.zeros((n-1, len(win_y), len(win_x), 3))
 
         # itterate though sections
         for coord in tqdm(win_coords):
@@ -241,8 +241,16 @@ class BOS(object):
             search = raw_data[:, win_row:win_row+win_size + 2 * p, win_col:win_col + win_size + 2 * p]
 
             # compute correlation and calcualte displacements
+            print(win.shape, search.shape) # DEBUG
             corr = batch_tools.normxcorr2(search, win, mode='full')
-            u, v = batch_tools.displacement(corr)
+            print(corr.shape, corr.max(), corr.min()) # DEBUG
+            u, v = batch_tools.displacement(corr) # <- ISSUE!!!! (constant win / search? added an extra displacement vector)
+            print(u.shape, v.shape) # DEBUG
+            
+            # POSSIBLE METHOD
+            if corr.max() == corr.min() or win.max() == win.min():
+                u = np.zeros((n - 1))
+                v = np.zeros((n - 1))
 
             # store calcualted values
             data[:, row, col, 0] = u
@@ -307,7 +315,7 @@ class BOS(object):
         data = (data * 255 / thresh).astype(np.uint8)
 
         # draw images
-        for i in tqdm(range(n)):
+        for i in tqdm(range(n - 1)):
             point = data[i]
             raw = drawn[i]
 
