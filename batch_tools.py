@@ -17,8 +17,8 @@ def conv2D(images:np.ndarray, kernals:np.ndarray, mode:str='full') -> np.ndarray
     2d Convolution
 
     Args:
-        images:np.ndarray : batch of images
-        kernals:np.ndarray : batch of kernals
+        images (np.ndarray) : batch of images
+        kernals (np.ndarray) : batch of kernals
 
     Returns:
         out (np.ndarray) : batch of convolutions
@@ -29,13 +29,34 @@ def conv2D(images:np.ndarray, kernals:np.ndarray, mode:str='full') -> np.ndarray
     # output
     return out
 
+def grayscale(images:np.ndarray) -> np.ndarray:
+    '''
+    Convert a batch of BGR images to grayscale
+
+    Args:
+        images (np.ndarray) : batch of images
+
+    Returns:
+        out (np.ndarray) : batch of grayscale images
+    '''
+    # get channels
+    red = images[:, :, :, 2]
+    green = images[:, :, :, 1]
+    blue = images[:, :, :, 0]
+
+    # convert
+    out = (0.299 * red + 0.587 * green + 0.114 * blue).astype(np.uint8)
+
+    # return
+    return out
+
 def batch_subtract(images:np.ndarray, values:np.ndarray) -> np.ndarray:
     '''
     Add scalars accross batch
 
     Args:
-        images:np.ndarray : batch of images
-        values:np.ndarray : batch of scalar values
+        images (np.ndarray) : batch of images
+        values (np.ndarray) : batch of scalar values
 
     Returns:
         out (np.ndarray) : modified batch
@@ -284,7 +305,7 @@ def displacement(corr:np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         v (np.ndarray) : v (row) displacements
     '''
     # pull key shape values
-    n, h, w = corr.shape
+    _, h, w = corr.shape
 
     # get peak locations
     x, y = peak(corr)
