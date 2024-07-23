@@ -16,9 +16,9 @@ from tqdm import tqdm
 import batch_tools
 
 # display methods
-TOTAL = 'tot'
-X = 'x'
-Y = 'y'
+DISP_MAG = 'mag'
+DISP_X = 'x'
+DISP_Y = 'y'
 
 # datasets
 DATA_RAW = 'raw'
@@ -147,7 +147,7 @@ class BOS(object):
         else:
             self._raw = np.array(data)
 
-    def compute(self, win_size:int=32, search_size:int=64, space:int=None, start:int=0, stop:int=None, step:int=1) -> None:
+    def compute(self, win_size:int=32, search_size:int=64, space:int=None, start:int=0, stop:int=None, step:int=1, pad:bool=False) -> None:
         '''
         Compute schlieren data
 
@@ -158,6 +158,7 @@ class BOS(object):
             start (int) : starting frame (default=0)
             stop (int) : ending frame (exclusive) (default=None)
             step (int) : step between frames (default=1)
+            pad (bool) : pad edges (default=False)
 
         Returns:
             None
@@ -172,12 +173,7 @@ class BOS(object):
         raw_data = self._raw[start:stop:step]
 
         # unpack shape values
-        n, h, w, _ = self._raw.shape
-
-        # convert BGR to greyscale if needed
-        isBGR = len(raw_data.shape) > 3
-        if isBGR:
-            raw_data = np.mean(raw_data, axis=3)
+        n, h, w, d = self._raw.shape
 
         # slice kernals
         if space:
@@ -187,24 +183,33 @@ class BOS(object):
         # tile kernal
         else:
             kernals = np.expand_dims(raw_data[0], axis=0)
-            kernals = np.tile(kernals, (n, 1, 1))
+            kernals = np.tile(kernals, (n, 1, 1, 1))
+
+        # convert BGR to greyscale if needed
+        if d == 3:
+            kernals = batch_tools.grayscale(kernals)
+            raw_data = batch_tools.grayscale(raw_data)
 
         # time offset data
         raw_data = raw_data[1:]
-        kernals = kernals[:len(kernals) - 1]
+        kernals = kernals[:len(kernals)-1]
 
         # pad raw data
-        pad = search_size - win_size >> 1
+        p = (search_size - win_size) >> 1
 
-        empty = np.zeros((n - 1, h + 2 * pad, w + 2 * pad))
-        empty[:, pad:h+pad, pad:w+pad] = raw_data
+        empty = np.zeros((n - 1, h + 2 * p, w + 2 * p), dtype=np.uint8)
+        empty[:, p:h+p, p:w+p] = raw_data
 
         raw_data = empty
         del empty
 
         # divide into windows
-        win_x = np.arange(w // win_size)
-        win_y = np.arange(h // win_size)
+        if pad:
+            win_x = np.arange(w // win_size)
+            win_y = np.arange(h // win_size)
+        else:
+            win_x = np.arange((w - 2 * p) // win_size)
+            win_y = np.arange((h - 2 * p) // win_size)
 
         # create list of coordinate pairs
         win_coords = np.meshgrid(win_x, win_y)
@@ -224,20 +229,25 @@ class BOS(object):
             win_row = row * win_size
             win_col = col * win_size
 
+            # if no padding
+            if not pad:
+                win_row += p
+                win_col += p
+
             # pull window
             win = kernals[:, win_row:win_row + win_size, win_col:win_col + win_size]
 
             # pull search area
-            search = raw_data[:, win_row:win_row+win_size + 2 * pad, win_col:win_col + win_size + 2 * pad]
+            search = raw_data[:, win_row:win_row+win_size + 2 * p, win_col:win_col + win_size + 2 * p]
 
             # compute correlation and calcualte displacements
-            corr = batch_tools.normxcorr2(search, win)
+            corr = batch_tools.normxcorr2(search, win, mode='full')
             u, v = batch_tools.displacement(corr)
 
             # store calcualted values
             data[:, row, col, 0] = u
             data[:, row, col, 1] = v
-            data[:, row, col, 2] = 0
+            data[:, row, col, 2] = np.sqrt(np.square(u) + np.square(v))
 
         # create new computed data if needed
         if (type(self._computed) != np.ndarray) or (self._computed.shape != data.shape):
@@ -247,14 +257,16 @@ class BOS(object):
         else:
             self._computed[start:stop:step] = data
 
-    def draw(self, method:str=TOTAL, thresh:float=5.0, alpha:float=0.6, start:int=0, stop:int=None, step:int=1) -> None:
+    def draw(self, method:str=DISP_MAG, thresh:float=5.0, alpha:float=0.6, colormap=cv2.COLORMAP_JET, interplolation=cv2.INTER_NEAREST, start:int=0, stop:int=None, step:int=1) -> None:
         '''
         Draw computed data
 
         Args:
-            method (str) : drawing method (default=TOTAL)
+            method (str) : drawing method (default=DISP_MAG)
             thresh (float) : value maximum (defult=5.0)
-            alpha (float) : blending between raw and computed (defult=0.6WW)
+            alpha (float) : blending between raw and computed (defult=0.6)
+            colormap (int) : colormap (default=cv2.COLORMAP_JET)
+            interplolation (int) : interplolation method (default=cv2.INTER_NEAREST)
             start (int) : starting frame (default=0)
             stop (int) : ending frame (exclusive) (default=None)
             step (int) : step between frames (default=1)
@@ -262,6 +274,66 @@ class BOS(object):
         Returns:
             None
         '''
+        # setup slice
+        if not stop:
+            stop = len(self._raw)
+
+        # slice data
+        drawn = self._raw[start:stop:step]
+        data = self._computed[start:stop:step]
+
+        # store shape
+        n, h, w, d = drawn.shape
+        
+        # convert raw data to BGR in needed
+        if d == 1:
+            drawn = np.stack([drawn, drawn, drawn], axis=3)
+
+        # get computed data
+        if method == DISP_X:
+            data = data[:, :, :, 0]
+        elif method == DISP_Y:
+            data = data[:, :, :, 1]
+        elif method == DISP_MAG:
+            data = data[:, :, :, 2]
+        else:
+            raise ValueError(f'Method {method} is not a valid method')
+        
+        # apply threshold
+        mask = data > thresh
+        data[mask] = np.nan
+
+        # normalize data
+        data = (data * 255 / thresh).astype(np.uint8)
+
+        # draw images
+        for i in tqdm(range(n)):
+            point = data[i]
+            raw = drawn[i]
+
+            # apply colormap
+            point = cv2.applyColorMap(point, cv2.COLORMAP_JET).astype(np.float16)
+
+            # mask colormap
+            point[mask[i]] = np.nan
+
+            # resize
+            point = cv2.resize(point, (w, h), interpolation=interplolation)
+
+            # replace empty values
+            nans = np.isnan(point)
+            point[nans] = raw[nans]
+
+            # belnd and store
+            drawn[i] = (raw * alpha + point * (1 - alpha)).astype(np.uint8)
+
+        # create new drawn data if needed
+        if (type(self._drawn) != np.ndarray) or (self._drawn.shape != drawn.shape):
+            self._drawn = drawn
+
+        # preserve old data
+        else:
+            self._drawn[start:stop:step] = drawn
 
     def display(self, dataname:str=DATA_DRAWN) -> None:
         '''
@@ -301,7 +373,7 @@ class BOS(object):
             img = imgs[ind]
 
             # resize
-            img = cv2.resize(img, (720, 720), interpolation=cv2.INTER_NEAREST)
+            img = cv2.resize(img, (512, 512), interpolation=cv2.INTER_NEAREST)
 
             # draw index
             #cv2
