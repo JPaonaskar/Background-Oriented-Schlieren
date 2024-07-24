@@ -76,8 +76,8 @@ def batch_multiply(images:np.ndarray, values:np.ndarray) -> np.ndarray:
     Multiply scalars accross batch
 
     Args:
-        images:np.ndarray : batch of images
-        values:np.ndarray : batch of scalar values
+        images (np.ndarray) : batch of images
+        values (np.ndarray) : batch of scalar values
 
     Returns:
         out (np.ndarray) : modified batch
@@ -98,8 +98,8 @@ def normxcorr2(images:np.ndarray, kernals:np.ndarray, mode:str='full') -> np.nda
     Modified version of Sabrewarrior/normxcorr2-python (original code is in /normxcorr2-python)
 
     Args:
-        images:np.ndarray : batch of images
-        kernals:np.ndarray : batch of kernals
+        images (np.ndarray) : batch of images
+        kernals (np.ndarray) : batch of kernals
 
     Returns:
         corr (np.ndarray) : batch of correlation values
