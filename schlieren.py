@@ -10,6 +10,7 @@ Resources:
 
 import os
 import cv2
+import time
 import numpy as np
 from tqdm import tqdm
 
@@ -154,9 +155,9 @@ class BOS(object):
         else:
             self._raw = np.array(data)
 
-    def compute(self, win_size:int=32, search_size:int=64, space:int=None, start:int=0, stop:int=None, step:int=1, pad:bool=False) -> None:
+    def _setup_compute(self, win_size:int, search_size:int, space:int, start:int, stop:int, step:int, pad:bool) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, int]:
         '''
-        Compute schlieren data
+        Setup data and other values for computing
 
         Args:
             win_size (int) : search windows size (default=32)
@@ -168,7 +169,12 @@ class BOS(object):
             pad (bool) : pad edges (default=False)
 
         Returns:
-            None
+            raw_data (np.ndarray) : raw data values
+            kernals (np.ndarray) : kernals
+            win_x (np.ndarray) : x axis
+            win_y (np.ndarray) : y axis
+            n (int) : number of data points
+            p (int) : padding size
         '''
         # setup slice
         if not stop:
@@ -218,6 +224,28 @@ class BOS(object):
             win_x = np.arange((w - 2 * p) // win_size)
             win_y = np.arange((h - 2 * p) // win_size)
 
+        # return key values
+        return raw_data, kernals, win_x, win_y, n, p
+
+    def compute(self, win_size:int=32, search_size:int=64, space:int=None, start:int=0, stop:int=None, step:int=1, pad:bool=False) -> None:
+        '''
+        Compute schlieren data
+
+        Args:
+            win_size (int) : search windows size (default=32)
+            search_size (int) : search size (default=64)
+            space (int) : space between referance frame. None implies use start frame (default=None)
+            start (int) : starting frame (default=0)
+            stop (int) : ending frame (exclusive) (default=None)
+            step (int) : step between frames (default=1)
+            pad (bool) : pad edges (default=False)
+
+        Returns:
+            None
+        '''
+        # get compute values
+        raw_data, kernals, win_x, win_y, n, p = self._setup_compute(win_size, search_size, space, start, stop, step, pad)
+
         # create list of coordinate pairs
         win_coords = np.meshgrid(win_x, win_y)
         win_coords = np.vstack([win_coords[0].flatten(), win_coords[1].flatten()])
@@ -257,13 +285,8 @@ class BOS(object):
             data[:, row, col, 1] = v
             data[:, row, col, 2] = np.sqrt(np.square(u) + np.square(v))
 
-        # write computed data
-        if (type(self._computed) != np.ndarray) or (self._computed.shape != data.shape):
-            self._computed = data
-
-        # preserve old data
-        else:
-            self._computed[start:stop:step] = data ############# this does not work!!!!!!!
+        # store computed data
+        self._computed = data
 
     def draw(self, method:str=DISP_MAG, thresh:float=5.0, alpha:float=0.6, colormap=cv2.COLORMAP_JET, interplolation=cv2.INTER_NEAREST, masked:bool=False, start:int=0, stop:int=None, step:int=1) -> None:
         '''
@@ -343,13 +366,8 @@ class BOS(object):
             # belnd and store
             drawn[i] = (raw * alpha + point * (1 - alpha)).astype(np.uint8)
 
-        # create new drawn data if needed
-        if (type(self._drawn) != np.ndarray) or (self._drawn.shape != drawn.shape):
-            self._drawn = drawn
-
-        # preserve old data
-        else:
-            self._drawn[start:stop:step] = drawn ############# this does not work!!!!!!!
+        # store drawn data
+        self._drawn = drawn
 
     def _get_data(self, dataname:str=DATA_DRAWN) -> np.ndarray:
         '''
@@ -432,11 +450,27 @@ class BOS(object):
             if (k == ord('q')) or (k == KEY_ESCAPE):
                 break
 
-            # looping
+            # large stepping
             elif k == ord('a'):
+                # full step
+                if ind >= 10:
+                    ind -= 10
+                # floor
+                else:
+                    ind = 0
+            elif k == ord('d'):
+                # full step
+                if ind < len(imgs) - 10:
+                    ind += 10
+                # ceil
+                else:
+                    ind = len(imgs) - 1
+
+            # small stepping
+            elif k == ord(','):
                 if ind > 0:
                     ind -= 1
-            elif k == ord('d'):
+            elif k == ord('.'):
                 if ind < len(imgs) - 1:
                     ind += 1
 
@@ -445,6 +479,247 @@ class BOS(object):
 
         # close window
         cv2.destroyWindow(dataname)
+
+    def _spiral_coords(self, w, h):
+        '''
+        Create a list of coordinates spiraling outward from the center
+
+        Args:
+            w (int) : width
+            h (int) : height
+
+        Returns:
+            coords (np.ndarray) : list of coordinates
+        '''
+        # initial state
+        x = w  // 2
+        y = h // 2
+        d = 0 # 0 = RIGHT, 1 = DOWN, 2 = LEFT, 3 = UP
+        s = 1 # chain size
+
+        # get furthest coord from center
+        dist = max(x, y)
+
+        # coordinate output
+        coords = [[x, y]]
+
+        # begin sprial (for number of step out from center) (Alternates from WS and WN)
+        for i in range(2*dist + 1):
+            # loop twice (chains are the same size twice)
+            for j in [0, 1]:
+                # step across chain
+                for k in range(s):
+                    # move in direction
+                    if (d == 0):
+                        x += 1
+                    elif (d == 1):
+                        y += 1
+                    elif (d == 2):
+                        x -= 1
+                    elif (d == 3):
+                        y -= 1
+
+                    # check if in bounds
+                    if (x >= 0 and x < w and y >= 0 and y < h):
+                        # save coorinate
+                        coords.append([x, y])
+
+                # change direction
+                d = (d + 1) % 4
+
+            # increase chain size
+            s += 1
+
+        # return
+        return np.array(coords, dtype=int)
+    
+    def _live_render_cell(self, win:np.ndarray, search:np.ndarray, method:str=DISP_MAG, thresh:float=5.0, alpha:float=0.6, colormap=cv2.COLORMAP_JET, masked:bool=False) -> np.ndarray:
+        '''
+        Compute and draw a cell
+
+        Args:
+            win (np.ndarray) : window to search for
+            search (np.ndarray) : search area
+            method (str) : drawing method (default=DISP_MAG)
+            thresh (float) : value maximum (defult=5.0)
+            alpha (float) : blending between raw and computed (defult=0.6)
+            colormap (int) : colormap (default=cv2.COLORMAP_JET)
+            masked (float) : treat low displacements as a mask (default=None)
+
+        Returns:
+            cell (np.ndarray) : drawn cell
+        '''
+        # create background
+        _, y, x = search.shape
+        _, w, h = win.shape
+
+        x = (x - w) // 2
+        y = (y - h) // 2
+
+        cell = win.copy() #search[:, y:y+h, x:x+w].copy()
+        cell = np.stack([cell, cell, cell], axis=3)
+
+        # compute correlation and calcualte displacements
+        corr = vectorized_tools.normxcorr2(search, win, mode='full')
+        u, v = vectorized_tools.displacement(corr)
+
+        # calculate magnitude
+        m = np.sqrt(np.square(u) + np.square(v))
+
+        # get computed data
+        if method == DISP_X:
+            data = u
+        elif method == DISP_Y:
+            data = v
+        elif method == DISP_MAG:
+            data = m
+
+        # apply threshold
+        mask = data > thresh
+
+        # mask
+        data[mask] = np.nan
+
+        # normalize data
+        data = (data * 255 / thresh).astype(np.uint8)
+
+        # apply colormap
+        data = cv2.applyColorMap(data, colormap).astype(np.float16)[0]
+
+        # blend and store
+        cell[~mask] = (cell[~mask] * alpha + data * (1 - alpha)).astype(np.uint8)
+
+        # output
+        return cell
+
+    def live(self, win_size:int=32, search_size:int=64, start:int=0, stop:int=None, step:int=1, pad:bool=False, method:str=DISP_MAG, thresh:float=5.0, alpha:float=0.6, colormap=cv2.COLORMAP_JET, masked:bool=False, font:int=cv2.FONT_HERSHEY_SIMPLEX, font_scale:float=0.5, font_color:tuple[int, int, int]=COLOR_WHITE, font_thickness:int=1, font_pad:int=8) -> None:
+        '''
+        Live computing and rendering
+
+        Args:
+            win_size (int) : search windows size (default=32)
+            search_size (int) : search size (default=64)
+            start (int) : starting frame (default=0)
+            stop (int) : ending frame (exclusive) (default=None)
+            step (int) : step between frames (default=1)
+            pad (bool) : pad edges (default=False)
+            method (str) : drawing method (default=DISP_MAG)
+            thresh (float) : value maximum (defult=5.0)
+            alpha (float) : blending between raw and computed (defult=0.6)
+            colormap (int) : colormap (default=cv2.COLORMAP_JET)
+            masked (float) : treat low displacements as a mask (default=None)
+            font (int) : overlay font, None displays no text (default=cv2.FONT_HERSHEY_SIMPLEX)
+            font_scale (float) : overlay font scale (default=0.5)
+            font_color (tuple[int, int, int]) : overlay font color (default=COLOR_WHITE)
+            font_thickness (int) : overlay font thickness (default=1)
+            font_pad (int) : overlay font padding from edges (default=8)
+
+        Returns:
+            None
+        '''
+        # unpack image size
+        _, h, w, _ = self._raw.shape
+
+        # setup computing values
+        raw_data, kernals, win_x, win_y, n, p = self._setup_compute(win_size, search_size, None, start, stop, step, pad)
+
+        # create spiral
+        coords = self._spiral_coords(win_x.max()+1, win_y.max()+1)
+
+        # create data lists values
+        drawn = np.zeros((n-1, h, w, 3), dtype=np.uint8)
+
+        # placeholders
+        ind = 0
+        coord_inds = np.zeros((n - 1), dtype=int)
+
+        # set window
+        cv2.namedWindow('Live')
+
+        # loop
+        while True:
+            # do computing
+            if coord_inds[ind] < len(coords):
+                # unpack output location
+                row = coords[coord_inds[ind], 1]
+                col = coords[coord_inds[ind], 0]
+
+                # get window location
+                win_row = row * win_size
+                win_col = col * win_size
+
+                # if no padding
+                if not pad:
+                    win_row += p
+                    win_col += p
+
+                # pull window
+                win = kernals[ind:ind+1, win_row:win_row + win_size, win_col:win_col + win_size]
+
+                # pull search area
+                search = raw_data[ind:ind+1, win_row:win_row+win_size + 2 * p, win_col:win_col + win_size + 2 * p]
+
+                # compute correlation and calcualte displacements
+                cell = self._live_render_cell(win, search, method, thresh, alpha, colormap, masked)
+
+                # draw cell
+                drawn[ind:ind+1, win_row:win_row + win_size, win_col:win_col + win_size, :] = cell
+
+                # move index
+                coord_inds[ind] += 1
+
+            # load image
+            img = drawn[ind]
+
+            # resize
+            img = cv2.resize(img, (512, 512), interpolation=cv2.INTER_NEAREST)
+
+            # draw index
+            if font != None:
+                # get text size
+                text = f'{ind+1} / {len(drawn)}'
+                (w, h), _ = cv2.getTextSize(text, font, font_scale, font_thickness)
+
+                # put text
+                org = (img.shape[1] - w - font_pad, img.shape[0] - h - font_pad)
+                img = cv2.putText(img, text, org, font, font_scale, font_color, font_thickness, cv2.LINE_AA)
+
+            # draw frame
+            cv2.imshow('Live', img)
+
+            # keys
+            k = cv2.waitKey(1)
+
+            # quit
+            if (k == ord('q')) or (k == KEY_ESCAPE):
+                break
+
+            # large stepping
+            elif k == ord('a'):
+                # full step
+                if ind >= 10:
+                    ind -= 10
+                # floor
+                else:
+                    ind = 0
+            elif k == ord('d'):
+                # full step
+                if ind < len(drawn) - 10:
+                    ind += 10
+                # ceil
+                else:
+                    ind = len(drawn) - 1
+
+            # small stepping
+            elif k == ord(','):
+                if ind > 0:
+                    ind -= 1
+            elif k == ord('.'):
+                if ind < len(drawn) - 1:
+                    ind += 1
+
+        # close window
+        cv2.destroyWindow('Live')
 
     def write(self, path:str=None, dataname:str=DATA_DRAWN, fps:float=30.0, start:int=0, stop:int=None, step:int=1) -> None:
         '''
