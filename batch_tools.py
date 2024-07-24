@@ -133,72 +133,9 @@ def normxcorr2(images:np.ndarray, kernals:np.ndarray, mode:str='full') -> np.nda
 
     # remove divisions by zero
     out[~np.isfinite(out)] = 0
-
-    '''
-    ### ORIGINAL CODE ###
-
-    template = template - np.mean(template)
-    image = image - np.mean(image)
-
-    a1 = np.ones(template.shape)
-    # Faster to flip up down and left right then use fftconvolve instead of scipy's correlate
-    ar = np.flipud(np.fliplr(template))
-    out = fftconvolve(image, ar.conj(), mode=mode)
     
-    image = fftconvolve(np.square(image), a1, mode=mode) - np.square(fftconvolve(image, a1, mode=mode)) / (np.prod(template.shape))
-
-    # Remove small machine precision errors after subtraction
-    image[np.where(image < 0)] = 0
-
-    template = np.sum(np.square(template))
-    with np.errstate(divide='ignore',invalid='ignore'): 
-        out = out / np.sqrt(image * template)
-
-    # Remove any divisions by 0 or very close to 0
-    out[np.where(np.logical_not(np.isfinite(out)))] = 0
-    
-    return out
-    '''
-    
-    return out
-
-def xcorr(images:np.ndarray, kernals:np.ndarray, mode:str='full') -> np.ndarray:
-    '''
-    Cross correlation for batches
-
-    Args:
-        kernals:np.ndarray : batch of kernal images
-        images:np.ndarray : batch of images
-
-    Returns:
-        corr (np.ndarray) : batch of correlation values
-    '''
-    # flip kernal vertically (axis=1) and horizontally (axis=2)
-    kernals = np.flip(np.flip(kernals, axis=1), axis=2)
-
-    # get means
-    image_means = np.mean(images, axis=(1, 2))
-    kernal_means = np.mean(kernals, axis=(1, 2))
-
-    # reshape means
-    image_means = image_means.reshape((images.shape[0], 1, 1))
-    image_means = np.tile(image_means, (1, images.shape[1], images.shape[2]))
-
-    kernal_means = kernal_means.reshape((kernals.shape[0], 1, 1))
-    kernal_means = np.tile(kernal_means, (1, kernals.shape[1], kernals.shape[2]))
-
-    # shift ('normalize' for lighting changes)
-    images = images - image_means
-    kernals = kernals - kernal_means
-
-    # convolve
-    out = fftconvolve(images, kernals.conj(), mode=mode, axes=[1, 2])
-
-    ############## consider normalizing by standard deviation
-    # out = out / (o_img * o_kernal)
-
     # output
-    return out.real
+    return out
 
 def gaussian(s:np.ndarray) -> float:
     '''
@@ -223,9 +160,9 @@ def gaussian(s:np.ndarray) -> float:
     # output
     return dr
 
-def peak(corr:np.ndarray, precision:type=np.float32) -> tuple[np.ndarray, np.ndarray]:
+def displacement(corr:np.ndarray, precision:type=np.float32, push_weight:float=0.01) -> tuple[np.ndarray, np.ndarray]:
     '''
-    Find batched peak location at the sub pixel level
+    Find displacements at the sub pixel level
 
     Args:
         corr (np.ndarray) : batch of correlation values
@@ -250,6 +187,16 @@ def peak(corr:np.ndarray, precision:type=np.float32) -> tuple[np.ndarray, np.nda
 
     # unpack values
     i, y, x = inds
+
+    # get unique
+    i, unique, counts = np.unique(i, return_index=True, return_counts=True) # ISSUE <- returns the furthest upper right value
+
+    # remove non-unique values
+    mask = counts == 1
+
+    i = i[mask]
+    x = x[unique][mask]
+    y = y[unique][mask]
 
     # avoid out of bounds for three-point (Note: some accuracy is lost (edge pixels are excluded))
     x[x == 0] = 1
@@ -290,29 +237,18 @@ def peak(corr:np.ndarray, precision:type=np.float32) -> tuple[np.ndarray, np.nda
     x += dx
     y += dy
 
-    # output
-    return x, y
-
-def displacement(corr:np.ndarray) -> tuple[np.ndarray, np.ndarray]:
-    '''
-    Find the displacement at the sub pixel level
-
-    Args:
-        corr (np.ndarray) : batch of correlation values
-
-    Returns:
-        u (np.ndarray) : u (column) displacements
-        v (np.ndarray) : v (row) displacements
-    '''
-    # pull key shape values
-    _, h, w = corr.shape
-
-    # get peak locations
-    x, y = peak(corr)
-
     # compute displacements
     u = x - w * 0.5 + 0.5
     v = y - h * 0.5 + 0.5
+
+    # populate data
+    temp = np.zeros_like(unique, dtype=float)
+
+    temp[mask] = u
+    u = temp.copy()
+
+    temp[mask] = v
+    v = temp.copy()
 
     # output
     return u, v
