@@ -227,6 +227,7 @@ class BOS(object):
         data = np.zeros((n-1, len(win_y), len(win_x), 3))
 
         # itterate though sections
+        print('Computing Frames')
         for coord in tqdm(win_coords):
             # unpack output location
             row = coord[1]
@@ -256,13 +257,13 @@ class BOS(object):
             data[:, row, col, 1] = v
             data[:, row, col, 2] = np.sqrt(np.square(u) + np.square(v))
 
-        # create new computed data if needed
+        # write computed data
         if (type(self._computed) != np.ndarray) or (self._computed.shape != data.shape):
             self._computed = data
 
         # preserve old data
         else:
-            self._computed[start:stop:step] = data
+            self._computed[start:stop:step] = data ############# this does not work!!!!!!!
 
     def draw(self, method:str=DISP_MAG, thresh:float=5.0, alpha:float=0.6, colormap=cv2.COLORMAP_JET, interplolation=cv2.INTER_NEAREST, masked:bool=False, start:int=0, stop:int=None, step:int=1) -> None:
         '''
@@ -321,6 +322,7 @@ class BOS(object):
         data = (data * 255 / thresh).astype(np.uint8)
 
         # draw images
+        print('Drawing Frames')
         for i in tqdm(range(n)):
             point = data[i]
             raw = drawn[i]
@@ -347,7 +349,7 @@ class BOS(object):
 
         # preserve old data
         else:
-            self._drawn[start:stop:step] = drawn
+            self._drawn[start:stop:step] = drawn ############# this does not work!!!!!!!
 
     def _get_data(self, dataname:str=DATA_DRAWN) -> np.ndarray:
         '''
@@ -444,13 +446,14 @@ class BOS(object):
         # close window
         cv2.destroyWindow(dataname)
 
-    def write(self, path:str=None, dataname:str=DATA_DRAWN, start:int=0, stop:int=None, step:int=1) -> None:
+    def write(self, path:str=None, dataname:str=DATA_DRAWN, fps:float=30.0, start:int=0, stop:int=None, step:int=1) -> None:
         '''
         Write image or video
 
         Args:
             path (str) : path to save location (direcory or .avi file) (default=None)
             dataname (str) : data to write (default=DATA_DRAWN)
+            fps (float) : video frames per second (default=30.0)
             start (int) : starting frame (default=0)
             stop (int) : ending frame (exclusive) (default=None)
             step (int) : step between frames (default=1)
@@ -460,3 +463,57 @@ class BOS(object):
         '''
         # get data
         imgs = self._get_data(dataname=dataname)
+
+        # pick current working directory and default to video if no path is given
+        if not path:
+            # get existing files and inital name guess
+            files = os.listdir(os.getcwd())
+            name = 'video.avi'
+
+            # pick a valid name
+            i = 1
+            while name in files:
+                name = f'video ({i}).avi'
+                i += 1
+
+            # save path
+            path = name
+
+        # get absolute path
+        path = os.path.abspath(path)
+
+        # check if path is for a video
+        if '.avi' == os.path.splitext(path)[1]:
+            # build directory if needed
+            direct = os.path.dirname(path)
+            if not os.path.exists(direct):
+                os.makedirs(direct)
+
+            # get image shape
+            size = (imgs.shape[2], imgs.shape[1])
+            
+            # open video writer
+            fourcc = cv2.VideoWriter_fourcc(*'DIVX')
+            video_out = cv2.VideoWriter(path, fourcc, fps, size)
+
+            # write video
+            print("Writting Video")
+            for frame in tqdm(imgs):
+                video_out.write(frame)
+
+            # release writer
+            video_out.release()
+
+        # check if path is for a directory
+        elif '' in os.path.splitext(path)[1]:
+            # build directory if needed
+            if not os.path.exists(path):
+                os.makedirs(path)
+
+            # write images
+            print("Writting Images")
+            for i, frame in tqdm(enumerate(imgs)):
+                cv2.imwrite(os.path.join(path, f'frame{i:04d}.jpg'), frame)
+
+        else:
+            raise ValueError(f'Expected path to be direcotry or .avi file but got {path}')

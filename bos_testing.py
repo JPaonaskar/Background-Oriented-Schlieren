@@ -12,6 +12,7 @@ import schlieren
 
 bos = schlieren.BOS()
 bos.read('Sample Data')
-bos.compute(start=0, win_size=8, search_size=16, pad=False)
-bos.draw(method=schlieren.DISP_MAG, thresh=5)
-bos.display(schlieren.DATA_DRAWN)
+#bos.compute(start=0, win_size=8, search_size=16, pad=False)
+#bos.draw(method=schlieren.DISP_MAG, thresh=5)
+#bos.display(schlieren.DATA_DRAWN)
+bos.write(path='Images', dataname=schlieren.DATA_RAW)
