@@ -44,6 +44,61 @@ COLOR_BLUE = (255, 0, 0)
 COLOR_GREEN = (0, 255, 0)
 COLOR_RED = (0, 0, 255)
 
+
+def _spiral_coords(w:int, h:int) -> np.ndarray:
+    '''
+    Create a list of coordinates spiraling outward from the center
+
+    Args:
+        w (int) : width
+        h (int) : height
+
+    Returns:
+        coords (np.ndarray) : list of coordinates
+    '''
+    # initial state
+    x = w  // 2
+    y = h // 2
+    d = 0 # 0 = RIGHT, 1 = DOWN, 2 = LEFT, 3 = UP
+    s = 1 # chain size
+
+    # get furthest coord from center
+    dist = max(x, y)
+
+    # coordinate output
+    coords = [[x, y]]
+
+    # begin sprial (for number of step out from center) (Alternates from WS and WN)
+    for i in range(2*dist + 1):
+        # loop twice (chains are the same size twice)
+        for j in [0, 1]:
+            # step across chain
+            for k in range(s):
+                # move in direction
+                if (d == 0):
+                    x += 1
+                elif (d == 1):
+                    y += 1
+                elif (d == 2):
+                    x -= 1
+                elif (d == 3):
+                    y -= 1
+
+                # check if in bounds
+                if (x >= 0 and x < w and y >= 0 and y < h):
+                    # save coorinate
+                    coords.append([x, y])
+
+            # change direction
+            d = (d + 1) % 4
+
+        # increase chain size
+        s += 1
+
+    # return
+    return np.array(coords, dtype=int)
+
+
 class BOS(object):
     '''
     Schlieren class to manage reading, writing, and computing
@@ -479,59 +534,6 @@ class BOS(object):
 
         # close window
         cv2.destroyWindow(dataname)
-
-    def _spiral_coords(self, w, h):
-        '''
-        Create a list of coordinates spiraling outward from the center
-
-        Args:
-            w (int) : width
-            h (int) : height
-
-        Returns:
-            coords (np.ndarray) : list of coordinates
-        '''
-        # initial state
-        x = w  // 2
-        y = h // 2
-        d = 0 # 0 = RIGHT, 1 = DOWN, 2 = LEFT, 3 = UP
-        s = 1 # chain size
-
-        # get furthest coord from center
-        dist = max(x, y)
-
-        # coordinate output
-        coords = [[x, y]]
-
-        # begin sprial (for number of step out from center) (Alternates from WS and WN)
-        for i in range(2*dist + 1):
-            # loop twice (chains are the same size twice)
-            for j in [0, 1]:
-                # step across chain
-                for k in range(s):
-                    # move in direction
-                    if (d == 0):
-                        x += 1
-                    elif (d == 1):
-                        y += 1
-                    elif (d == 2):
-                        x -= 1
-                    elif (d == 3):
-                        y -= 1
-
-                    # check if in bounds
-                    if (x >= 0 and x < w and y >= 0 and y < h):
-                        # save coorinate
-                        coords.append([x, y])
-
-                # change direction
-                d = (d + 1) % 4
-
-            # increase chain size
-            s += 1
-
-        # return
-        return np.array(coords, dtype=int)
     
     def _live_render_cell(self, win:np.ndarray, search:np.ndarray, method:str=DISP_MAG, thresh:float=5.0, alpha:float=0.6, colormap=cv2.COLORMAP_JET, masked:bool=False) -> np.ndarray:
         '''
@@ -624,7 +626,7 @@ class BOS(object):
         raw_data, kernals, win_x, win_y, n, p = self._setup_compute(win_size, search_size, None, start, stop, step, pad)
 
         # create spiral
-        coords = self._spiral_coords(win_x.max()+1, win_y.max()+1)
+        coords = _spiral_coords(win_x.max()+1, win_y.max()+1)
 
         # create data lists values
         drawn = np.zeros((n-1, h, w, 3), dtype=np.uint8)
