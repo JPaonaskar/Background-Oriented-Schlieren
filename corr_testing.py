@@ -10,7 +10,7 @@ Resources:
 
 import time
 import numpy as np
-import batch_tools as bt
+import vectorized_tools as bt
 from normxcorr2 import normxcorr2
 
 n = 16

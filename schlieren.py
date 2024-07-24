@@ -13,7 +13,7 @@ import cv2
 import numpy as np
 from tqdm import tqdm
 
-import batch_tools
+import vectorized_tools
 
 # display methods
 DISP_MAG = 'mag'
@@ -35,6 +35,13 @@ KEY_TAB = 9
 KEY_ENTER = 13
 KEY_ESCAPE = 27
 KEY_SPACE = 32
+
+# colors
+COLOR_WHITE = (255, 255, 255)
+COLOR_BLACK = (0, 0, 0)
+COLOR_BLUE = (255, 0, 0)
+COLOR_GREEN = (0, 255, 0)
+COLOR_RED = (0, 0, 255)
 
 class BOS(object):
     '''
@@ -187,8 +194,8 @@ class BOS(object):
 
         # convert BGR to greyscale if needed
         if d == 3:
-            kernals = batch_tools.grayscale(kernals)
-            raw_data = batch_tools.grayscale(raw_data)
+            kernals = vectorized_tools.grayscale(kernals)
+            raw_data = vectorized_tools.grayscale(raw_data)
 
         # time offset data
         raw_data = raw_data[1:]
@@ -241,8 +248,8 @@ class BOS(object):
             search = raw_data[:, win_row:win_row+win_size + 2 * p, win_col:win_col + win_size + 2 * p]
 
             # compute correlation and calcualte displacements
-            corr = batch_tools.normxcorr2(search, win, mode='full')
-            u, v = batch_tools.displacement(corr)
+            corr = vectorized_tools.normxcorr2(search, win, mode='full')
+            u, v = vectorized_tools.displacement(corr)
 
             # store calcualted values
             data[:, row, col, 0] = u
@@ -342,27 +349,47 @@ class BOS(object):
         else:
             self._drawn[start:stop:step] = drawn
 
-    def display(self, dataname:str=DATA_DRAWN, font:int=cv2.FONT_HERSHEY_SIMPLEX, font_scale:float=0.5, font_thickness:int=1) -> None:
+    def _get_data(self, dataname:str=DATA_DRAWN) -> np.ndarray:
+        '''
+        Display drawn data
+
+        Args:
+            dataname (str) : data to display (default=DATA_DRAWN)
+
+        Returns:
+            None
+        '''
+        # get images
+        data = None
+        if dataname == DATA_RAW:
+            data = self._raw
+        elif dataname == DATA_COMPUTED:
+            data = self._computed
+        elif dataname == DATA_DRAWN:
+            data = self._drawn
+        else:
+            ValueError(f'{dataname} in not a valid dataset')
+
+        # output
+        return data
+
+    def display(self, dataname:str=DATA_DRAWN, font:int=cv2.FONT_HERSHEY_SIMPLEX, font_scale:float=0.5, font_color:tuple[int, int, int]=COLOR_WHITE, font_thickness:int=1, font_pad:int=8) -> None:
         '''
         Display drawn data
 
         Args:
             dataname (str) : data to display (default=DATA_DRAWN)
             font (int) : overlay font, None displays no text (default=cv2.FONT_HERSHEY_SIMPLEX)
+            font_scale (float) : overlay font scale (default=0.5)
+            font_color (tuple[int, int, int]) : overlay font color (default=COLOR_WHITE)
+            font_thickness (int) : overlay font thickness (default=1)
+            font_pad (int) : overlay font padding from edges (default=8)
 
         Returns:
             None
         '''
-        # get images
-        imgs = None
-        if dataname == DATA_RAW:
-            imgs = self._raw
-        elif dataname == DATA_COMPUTED:
-            imgs = self._computed
-        elif dataname == DATA_DRAWN:
-            imgs = self._drawn
-        else:
-            ValueError(f'{dataname} in not a valid dataset')
+        # get data
+        imgs = self._get_data(dataname=dataname)
 
         # shift unsigned 8-bit
         imgs = imgs - np.min(imgs) # 0.0 - max
@@ -390,8 +417,8 @@ class BOS(object):
                 (w, h), _ = cv2.getTextSize(text, font, font_scale, font_thickness)
 
                 # put text
-                org = (img.shape[1] - w - 8, img.shape[0] - h - 8)
-                img = cv2.putText(img, text, org, font, font_scale, (255, 255, 255), font_thickness, cv2.LINE_AA)
+                org = (img.shape[1] - w - font_pad, img.shape[0] - h - font_pad)
+                img = cv2.putText(img, text, org, font, font_scale, font_color, font_thickness, cv2.LINE_AA)
 
             # draw frame
             cv2.imshow(dataname, img)
@@ -417,14 +444,13 @@ class BOS(object):
         # close window
         cv2.destroyWindow(dataname)
 
-    def write(self, path:str=None, dataname:str=DATA_DRAWN, images:bool=False, start:int=0, stop:int=None, step:int=1) -> None:
+    def write(self, path:str=None, dataname:str=DATA_DRAWN, start:int=0, stop:int=None, step:int=1) -> None:
         '''
         Write image or video
 
         Args:
-            path (str) : path to save location (direcory or file) (default=None)
+            path (str) : path to save location (direcory or .avi file) (default=None)
             dataname (str) : data to write (default=DATA_DRAWN)
-            images (bool) : save data as images (default=False)
             start (int) : starting frame (default=0)
             stop (int) : ending frame (exclusive) (default=None)
             step (int) : step between frames (default=1)
@@ -432,3 +458,5 @@ class BOS(object):
         Returns:
             None
         '''
+        # get data
+        imgs = self._get_data(dataname=dataname)
