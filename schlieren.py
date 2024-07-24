@@ -170,7 +170,7 @@ class BOS(object):
             stop = stop - space
 
         # slice
-        raw_data = self._raw[start:stop:step]
+        raw_data = self._raw[start:stop:step].copy()
 
         # unpack shape values
         n, h, w, d = self._raw.shape
@@ -241,16 +241,8 @@ class BOS(object):
             search = raw_data[:, win_row:win_row+win_size + 2 * p, win_col:win_col + win_size + 2 * p]
 
             # compute correlation and calcualte displacements
-            print(win.shape, search.shape) # DEBUG
             corr = batch_tools.normxcorr2(search, win, mode='full')
-            print(corr.shape, corr.max(), corr.min()) # DEBUG
-            u, v = batch_tools.displacement(corr) # <- ISSUE!!!! (constant win / search? added an extra displacement vector)
-            print(u.shape, v.shape) # DEBUG
-            
-            # POSSIBLE METHOD
-            if corr.max() == corr.min() or win.max() == win.min():
-                u = np.zeros((n - 1))
-                v = np.zeros((n - 1))
+            u, v = batch_tools.displacement(corr)
 
             # store calcualted values
             data[:, row, col, 0] = u
@@ -265,7 +257,7 @@ class BOS(object):
         else:
             self._computed[start:stop:step] = data
 
-    def draw(self, method:str=DISP_MAG, thresh:float=5.0, alpha:float=0.6, colormap=cv2.COLORMAP_JET, interplolation=cv2.INTER_NEAREST, start:int=0, stop:int=None, step:int=1) -> None:
+    def draw(self, method:str=DISP_MAG, thresh:float=5.0, alpha:float=0.6, colormap=cv2.COLORMAP_JET, interplolation=cv2.INTER_NEAREST, masked:bool=False, start:int=0, stop:int=None, step:int=1) -> None:
         '''
         Draw computed data
 
@@ -275,6 +267,7 @@ class BOS(object):
             alpha (float) : blending between raw and computed (defult=0.6)
             colormap (int) : colormap (default=cv2.COLORMAP_JET)
             interplolation (int) : interplolation method (default=cv2.INTER_NEAREST)
+            masked (float) : treat low displacements as a mask (default=None)
             start (int) : starting frame (default=0)
             stop (int) : ending frame (exclusive) (default=None)
             step (int) : step between frames (default=1)
@@ -284,11 +277,11 @@ class BOS(object):
         '''
         # setup slice
         if not stop:
-            stop = len(self._raw)
+            stop = len(self._computed)
 
         # slice data
-        drawn = self._raw[start:stop:step]
-        data = self._computed[start:stop:step]
+        drawn = self._raw[start:stop:step].copy()
+        data = self._computed[start:stop:step].copy()
 
         # store shape
         n, h, w, d = drawn.shape
@@ -309,18 +302,24 @@ class BOS(object):
         
         # apply threshold
         mask = data > thresh
-        data[mask] = np.nan
+
+        # remove zeros
+        if masked:
+            mask = np.bitwise_or(mask, data <= masked)
+
+        # mask
+        data[mask] = np.nan  
 
         # normalize data
         data = (data * 255 / thresh).astype(np.uint8)
 
         # draw images
-        for i in tqdm(range(n - 1)):
+        for i in tqdm(range(n)):
             point = data[i]
             raw = drawn[i]
 
             # apply colormap
-            point = cv2.applyColorMap(point, cv2.COLORMAP_JET).astype(np.float16)
+            point = cv2.applyColorMap(point, colormap).astype(np.float16)
 
             # mask colormap
             point[mask[i]] = np.nan
@@ -343,12 +342,13 @@ class BOS(object):
         else:
             self._drawn[start:stop:step] = drawn
 
-    def display(self, dataname:str=DATA_DRAWN) -> None:
+    def display(self, dataname:str=DATA_DRAWN, font:int=cv2.FONT_HERSHEY_SIMPLEX, font_scale:float=0.5, font_thickness:int=1) -> None:
         '''
         Display drawn data
 
         Args:
-            None
+            dataname (str) : data to display (default=DATA_DRAWN)
+            font (int) : overlay font, None displays no text (default=cv2.FONT_HERSHEY_SIMPLEX)
 
         Returns:
             None
@@ -384,7 +384,14 @@ class BOS(object):
             img = cv2.resize(img, (512, 512), interpolation=cv2.INTER_NEAREST)
 
             # draw index
-            #cv2
+            if font != None:
+                # get text size
+                text = f'{ind+1} / {len(imgs)}'
+                (w, h), _ = cv2.getTextSize(text, font, font_scale, font_thickness)
+
+                # put text
+                org = (img.shape[1] - w - 8, img.shape[0] - h - 8)
+                img = cv2.putText(img, text, org, font, font_scale, (255, 255, 255), font_thickness, cv2.LINE_AA)
 
             # draw frame
             cv2.imshow(dataname, img)
@@ -405,17 +412,19 @@ class BOS(object):
                     ind += 1
 
             else:
-                print('pressed:', k)
+                print('pressed:', k, chr(k).strip())
 
         # close window
         cv2.destroyWindow(dataname)
 
-    def write(self, path:str=None, start:int=0, stop:int=None, step:int=1) -> None:
+    def write(self, path:str=None, dataname:str=DATA_DRAWN, images:bool=False, start:int=0, stop:int=None, step:int=1) -> None:
         '''
         Write image or video
 
         Args:
             path (str) : path to save location (direcory or file) (default=None)
+            dataname (str) : data to write (default=DATA_DRAWN)
+            images (bool) : save data as images (default=False)
             start (int) : starting frame (default=0)
             stop (int) : ending frame (exclusive) (default=None)
             step (int) : step between frames (default=1)
