@@ -160,6 +160,18 @@ compute(
 ```
 
 ```python
+compute_multi(
+    win_size : int = 32,
+    search_size : int = 64,
+    particle_size : int = 2,
+    start : int = 0,
+    stop : int = None,
+    step : int = 1,
+    pad : bool = False
+) -> None
+```
+
+```python
 draw(
     method : str = DISP_MAG,
     thresh : float = 5.0,
@@ -215,7 +227,7 @@ live(
     thresh : float = 5.0,
     alpha : float = 0.6,
     colormap : int = cv2.COLORMAP_JET,
-    masked : bool = False,
+    masked : float = None,
 
     font : int = cv2.FONT_HERSHEY_SIMPLEX,
     font_scale : float = 0.5,

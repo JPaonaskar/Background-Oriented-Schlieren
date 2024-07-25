@@ -348,7 +348,26 @@ class BOS(object):
         # store computed data
         self._computed = data
 
-    def draw(self, method:str=DISP_MAG, thresh:float=5.0, alpha:float=0.6, colormap:int=cv2.COLORMAP_JET, interplolation:int=cv2.INTER_NEAREST, masked:bool=False, start:int=0, stop:int=None, step:int=1) -> None:
+    def compute_multi(self, win_size:int=32, search_size:int=64, particle_size:int=2, start:int=0, stop:int=None, step:int=1, pad:bool=False) -> None:
+        '''
+        Mulipass compute
+
+        Args:
+            win_size (int) : search windows size (default=32)
+            search_size (int) : search size (default=64)
+            particle_size (int) : particle size (default=2)
+            space (int) : space between referance frame. None implies use start frame (default=None)
+            start (int) : starting frame (default=0)
+            stop (int) : ending frame (exclusive) (default=None)
+            step (int) : step between frames (default=1)
+            pad (bool) : pad edges (default=False)
+
+        Returns:
+            None
+        '''
+        pass
+
+    def draw(self, method:str=DISP_MAG, thresh:float=5.0, alpha:float=0.6, colormap:int=cv2.COLORMAP_JET, interplolation:int=cv2.INTER_NEAREST, masked:float=None, start:int=0, stop:int=None, step:int=1) -> None:
         '''
         Draw computed data
 
@@ -599,7 +618,7 @@ class BOS(object):
         # output
         return cell
 
-    def live(self, win_size:int=32, search_size:int=64, start:int=0, stop:int=None, step:int=1, pad:bool=False, method:str=DISP_MAG, thresh:float=5.0, alpha:float=0.6, colormap:int=cv2.COLORMAP_JET, masked:bool=False, font:int=cv2.FONT_HERSHEY_SIMPLEX, font_scale:float=0.5, font_color:tuple[int, int, int]=COLOR_WHITE, font_thickness:int=1, font_pad:int=8) -> None:
+    def live(self, win_size:int=32, search_size:int=64, start:int=0, stop:int=None, step:int=1, pad:bool=False, method:str=DISP_MAG, thresh:float=5.0, alpha:float=0.6, colormap:int=cv2.COLORMAP_JET, masked:float=None, font:int=cv2.FONT_HERSHEY_SIMPLEX, font_scale:float=0.5, font_color:tuple[int, int, int]=COLOR_WHITE, font_thickness:int=1, font_pad:int=8) -> None:
         '''
         Live computing and rendering
 
