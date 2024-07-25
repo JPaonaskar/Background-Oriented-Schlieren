@@ -65,13 +65,6 @@ bos.compute(win_size=8, search_size=16)
 
 The selection of frames can be changed with the `start`, `stop` (exclusive), and `step`.
 
-```python
-bos.compute(start=0, stop=60, step=2)
-```
-
-> [!TIP]
-> When `stop=None` the last frame is used
-
 
 ### 4.1.4 Drawing Displacements
 
@@ -92,15 +85,6 @@ To modify the blending between the background and the data set `alpha` to betwee
 bos.draw(thresh=5.0, alpha-0.6, masked=0.5, colormap=cv2.COLORMAP_JET)
 ```
 
-Once again the selection of frames can be changed with the `start`, `stop` (exclusive), and `step`.
-
-```python
-bos.draw(start=0, stop=60, step=2)
-```
-
-> [!WARNING]
-> These values must match the values passed to the `.compute(...)` method.
-
 ### 4.1.5 Writing Data
 
 The `.write(...)` method writes data as images to a folder:
@@ -120,15 +104,6 @@ bos.write('video.avi')
 
 > [!TIP]
 > The frames per section is set using `fps`.
-
-Once again the selection of frames can be changed with the `start`, `stop` (exclusive), and `step`.
-
-```python
-bos.write(start=0, stop=60, step=2)
-```
-
-> [!WARNING]
-> These values slice relitive to the data rather then the read images.
 
 ### 4.1.6 Live View
 
