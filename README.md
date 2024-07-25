@@ -25,19 +25,19 @@ bos = schlieren.BOS()
 ### 4.1.2 Reading Data
 
 Raw data can be read using `.read(...)` method.
-This method can read a single image,
+This method can read a single image:
 
 ```python
 bos.read('image.jpg')
 ```
 
-.avi video files,
+.avi video files:
 
 ```python
 bos.read('video.avi')
 ```
 
-and folders of images
+and folders of images:
 
 ```python
 bos.read('frames')
@@ -48,17 +48,12 @@ To overwrite existing data set the argument `append=False`.
 
 > [!TIP]
 > Any stored data can be visualized using the `.display(...)` method in `BOS()`.
-> The data can be set to `dataname=DATA_RAW`, `dataname=DATA_COMPUTED`, or `dataname=DATA_DRAWN`.
+> The data (`dataname`) can be set to `DATA_RAW`, `DATA_COMPUTED`, or `DATA_DRAWN`.
 
 
 ### 4.1.3 Computing Displacements
 
 Displacements are computed using the `.compute(...)` method.
-
-```python
-bos.compute()
-```
-
 The `win_size` controls the size of the window to search for while `search_size` controls the size of the area to search for the window
 
 ```python
@@ -86,17 +81,12 @@ Displacements are drawn using the `.draw(...)` method.
 bos.draw()
 ```
 
-By default the displacement magnitudes are drawn but this can also be set as X or Y displacements.
-
-```python
-bos.draw(method=DISP_X)
-
-bos.draw(method=DISP_Y)
-```
+> [!TIP]
+> Draw has three `methods`: `DISP_X`, `DISP_Y`, and `DISP_MAG` (default).
 
 The data can be clipped using the `thresh` as the maximum value and `masked` as the minumum.
-Use `colormap` to set the colormap to any opencv color map.
-To modify the blending between the background and the data set `alpha` to between 0 (no bg) and 1 (only bg)
+Use `colormap` to set the colormap to any OpenCV color map.
+To modify the blending between the background and the data set `alpha` to between `0.0` (no bg) and `1.0` (only bg)
 
 ```python
 bos.draw(thresh=5.0, alpha-0.6, masked=0.5, colormap=cv2.COLORMAP_JET)
@@ -113,23 +103,23 @@ bos.draw(start=0, stop=60, step=2)
 
 ### 4.1.5 Writing Data
 
-The `.write(...)` method writes data as images to a folder
+The `.write(...)` method writes data as images to a folder:
 
 ```python
 bos.write('frames')
 ```
 
-or a video
+or a video:
 
 ```python
 bos.write('video.avi')
 ```
 
 > [!TIP]
-> The frames per section is set using `fps`.
+> By default a video is outputed to the current working directory.
 
 > [!TIP]
-> By default a video is outputed to the current working directory.
+> The frames per section is set using `fps`.
 
 Once again the selection of frames can be changed with the `start`, `stop` (exclusive), and `step`.
 
