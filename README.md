@@ -119,7 +119,7 @@ bos.live()
 > Use `s` to save the current frame
 
 > [!TIP]
-> The save resolution can be set seperately with `_save...` arguments
+> The save resolution can be set seperately with `save_...` arguments
 
 ### 4.2. Module: schlieren
 
