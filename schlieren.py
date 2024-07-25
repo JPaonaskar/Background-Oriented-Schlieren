@@ -418,7 +418,7 @@ class BOS(object):
             mask = np.bitwise_or(mask, data <= masked)
 
         # mask
-        data[mask] = np.nan  
+        data[mask] = 0.0  
 
         # normalize data
         data = (data * 255 / thresh).astype(np.uint8)
@@ -430,20 +430,21 @@ class BOS(object):
             raw = drawn[i]
 
             # apply colormap
-            point = cv2.applyColorMap(point, colormap).astype(np.float16)
+            point = cv2.applyColorMap(point, colormap)
 
-            # mask colormap
-            point[mask[i]] = np.nan
+            # make blending image
+            blend = mask[i].astype(np.uint8) * 255
+            blend = np.stack([blend, blend, blend], axis=2)
 
             # resize
+            blend = cv2.resize(blend, (w, h), interpolation=interplolation)
             point = cv2.resize(point, (w, h), interpolation=interplolation)
 
-            # replace empty values
-            nans = np.isnan(point)
-            point[nans] = raw[nans]
+            # modify to be alpha
+            blend = blend / 255.0 * alpha + (1 - alpha)
 
             # belnd and store
-            drawn[i] = (raw * alpha + point * (1 - alpha)).astype(np.uint8)
+            drawn[i] = (raw * blend + point * (1 - blend)).astype(np.uint8)
 
         # store drawn data
         self._drawn = drawn
@@ -603,8 +604,9 @@ class BOS(object):
         # apply threshold
         mask = data > thresh
 
-        # mask
-        data[mask] = np.nan
+        # apply mask
+        if masked:
+            mask = np.bitwise_or(mask, data < masked)
 
         # normalize data
         data = (data * 255 / thresh).astype(np.uint8)
