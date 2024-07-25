@@ -12,7 +12,11 @@
 
 #### 4.1.1. Classes
 
-##### 4.1.1.1. BOS
+```
+class BOS(
+
+) 
+```
 
 #### 4.1.2. Functions
 
@@ -23,6 +27,19 @@
 #### 4.1.1. Classes
 
 #### 4.1.2. Functions
+
+```
+conv2D(
+    images : np.ndarray
+    kernals : np.ndarray
+) -> out : np.ndarray
+```
+
+```
+grayscale(
+    
+) 
+```
 
 #### 4.1.3. Constants
 
