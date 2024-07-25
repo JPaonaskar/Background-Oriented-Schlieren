@@ -48,7 +48,7 @@ To overwrite existing data set the argument `append=False`.
 
 > [!TIP]
 > Any stored data can be visualized using the `.display(...)` method in `BOS()`.
-> The data can be set to `DATA_RAW`, `DATA_COMPUTED`, and `DATA_DRAWN`.
+> The data can be set to `dataname=DATA_RAW`, `dataname=DATA_COMPUTED`, or `dataname=DATA_DRAWN`.
 
 
 ### 4.1.3 Computing Displacements
