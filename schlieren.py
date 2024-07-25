@@ -5,7 +5,7 @@ by Josha Paonaskar
 Background Oriented Schlieren constants, class, methods
 
 Resources:
-
+    https://web.mit.edu/dphart/www/Super-Resolution%20PIV.pdf
 '''
 
 import os
@@ -43,6 +43,10 @@ COLOR_BLUE = (255, 0, 0)
 COLOR_GREEN = (0, 255, 0)
 COLOR_RED = (0, 0, 255)
 
+# interplation
+INTER_NEAREST = cv2.INTER_NEAREST
+INTER_CUBIC = cv2.INTER_CUBIC
+
 
 def _spiral_coords(w:int, h:int) -> np.ndarray:
     '''
@@ -56,7 +60,7 @@ def _spiral_coords(w:int, h:int) -> np.ndarray:
         coords (np.ndarray) : list of coordinates
     '''
     # initial state
-    x = w  // 2
+    x = w // 2
     y = h // 2
     d = 0 # 0 = RIGHT, 1 = DOWN, 2 = LEFT, 3 = UP
     s = 1 # chain size
@@ -215,18 +219,19 @@ class BOS(object):
         else:
             self._raw = np.array(data)
 
-    def _setup_compute(self, win_size:int, search_size:int, space:int, start:int, stop:int, step:int, pad:bool) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, int, int]:
+    def _setup_compute(self, win_size:int, search_size:int, overlap:int, space:int, start:int, stop:int, step:int, pad:bool) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, int, int]:
         '''
         Setup data and other values for computing
 
         Args:
-            win_size (int) : search windows size (default=32)
-            search_size (int) : search size (default=64)
-            space (int) : space between referance frame. None implies use start frame (default=None)
-            start (int) : starting frame (default=0)
-            stop (int) : ending frame (exclusive) (default=None)
-            step (int) : step between frames (default=1)
-            pad (bool) : pad edges (default=False)
+            win_size (int) : search windows size
+            search_size (int) : search size
+            overlap (int) : overlap between windows
+            space (int) : space between referance frame. None implies use start frame
+            start (int) : starting frame
+            stop (int) : ending frame (exclusive)
+            step (int) : step between frames
+            pad (bool) : pad edges
 
         Returns:
             raw_data (np.ndarray) : raw data values
@@ -276,24 +281,43 @@ class BOS(object):
         raw_data = empty
         del empty
 
-        # divide into windows
-        if pad:
-            win_x = np.arange(w // win_size)
-            win_y = np.arange(h // win_size)
-        else:
-            win_x = np.arange((w - 2 * p) // win_size)
-            win_y = np.arange((h - 2 * p) // win_size)
+        # add padding
+        if not pad:
+            w -= 2 * p
+            h -= 2 * p
+
+        # maximum window location (inclusive)
+        x1 = (w - win_size) // (win_size - overlap)
+        y1 = (h - win_size) // (win_size - overlap)
+
+        # error values
+        ex = (w - win_size) % (win_size - overlap) // 2
+        ey = (h - win_size) % (win_size - overlap) // 2
+
+        # build window coordinates
+        win_x = np.arange(x1 + 1)
+        win_y = np.arange(y1 + 1)
+
+        # convert to pixel coordinates
+        win_x = win_x * (win_size - overlap) + ex
+        win_y = win_y * (win_size - overlap) + ey
+
+        # add padding
+        if not pad:
+            win_x += p
+            win_y += p
 
         # return key values
         return raw_data, kernals, win_x, win_y, n, p
 
-    def compute(self, win_size:int=32, search_size:int=64, space:int=None, start:int=0, stop:int=None, step:int=1, pad:bool=False) -> None:
+    def compute(self, win_size:int=32, search_size:int=64, overlap:int=0, space:int=None, start:int=0, stop:int=None, step:int=1, pad:bool=False) -> None:
         '''
         Compute schlieren data
 
         Args:
             win_size (int) : search windows size (default=32)
             search_size (int) : search size (default=64)
+            overlap (int) : overlap between windows (default=0)
             space (int) : space between referance frame. None implies use start frame (default=None)
             start (int) : starting frame (default=0)
             stop (int) : ending frame (exclusive) (default=None)
@@ -304,10 +328,10 @@ class BOS(object):
             None
         '''
         # get compute values
-        raw_data, kernals, win_x, win_y, n, p = self._setup_compute(win_size, search_size, space, start, stop, step, pad)
+        raw_data, kernals, win_x, win_y, n, p = self._setup_compute(win_size, search_size, overlap, space, start, stop, step, pad)
 
         # create list of coordinate pairs
-        win_coords = np.meshgrid(win_x, win_y)
+        win_coords = np.meshgrid(np.arange(len(win_x)), np.arange(len(win_y)))
         win_coords = np.vstack([win_coords[0].flatten(), win_coords[1].flatten()])
         win_coords = np.swapaxes(win_coords, 0, 1)
 
@@ -322,13 +346,8 @@ class BOS(object):
             col = coord[0]
 
             # get window location
-            win_row = row * win_size
-            win_col = col * win_size
-
-            # if no padding
-            if not pad:
-                win_row += p
-                win_col += p
+            win_row = win_y[row]
+            win_col = win_x[col]
 
             # pull window
             win = kernals[:, win_row:win_row + win_size, win_col:win_col + win_size]
@@ -348,7 +367,7 @@ class BOS(object):
         # store computed data
         self._computed = data
 
-    def compute_multi(self, win_size:int=32, search_size:int=64, particle_size:int=2, start:int=0, stop:int=None, step:int=1, pad:bool=False) -> None:
+    def compute_multi(self, win_size:int=32, search_size:int=64, particle_size:int=2, overlap:int=0, start:int=0, stop:int=None, step:int=1, pad:bool=False) -> None:
         '''
         Mulipass compute
 
@@ -356,6 +375,7 @@ class BOS(object):
             win_size (int) : search windows size (default=32)
             search_size (int) : search size (default=64)
             particle_size (int) : particle size (default=2)
+            overlap (int) : overlap between windows (default=0)
             space (int) : space between referance frame. None implies use start frame (default=None)
             start (int) : starting frame (default=0)
             stop (int) : ending frame (exclusive) (default=None)
@@ -367,7 +387,7 @@ class BOS(object):
         '''
         pass
 
-    def draw(self, method:str=DISP_MAG, thresh:float=5.0, alpha:float=0.6, colormap:int=cv2.COLORMAP_JET, interplolation:int=cv2.INTER_NEAREST, masked:float=None, start:int=0, stop:int=None, step:int=1) -> None:
+    def draw(self, method:str=DISP_MAG, thresh:float=5.0, alpha:float=0.6, colormap:int=cv2.COLORMAP_JET, interplolation:int=INTER_NEAREST, masked:float=None, start:int=0, stop:int=None, step:int=1) -> None:
         '''
         Draw computed data
 
@@ -376,7 +396,7 @@ class BOS(object):
             thresh (float) : value maximum (defult=5.0)
             alpha (float) : blending between raw and computed (defult=0.6)
             colormap (int) : colormap (default=cv2.COLORMAP_JET)
-            interplolation (int) : interplolation method (default=cv2.INTER_NEAREST)
+            interplolation (int) : interplolation method (default=INTER_NEAREST)
             masked (float) : treat low displacements as a mask (default=None)
             start (int) : starting frame (default=0)
             stop (int) : ending frame (exclusive) (default=None)
@@ -508,7 +528,7 @@ class BOS(object):
             img = imgs[ind]
 
             # resize
-            img = cv2.resize(img, (512, 512), interpolation=cv2.INTER_NEAREST)
+            img = cv2.resize(img, (512, 512), interpolation=INTER_NEAREST)
 
             # draw index
             if font != None:
@@ -620,13 +640,14 @@ class BOS(object):
         # output
         return cell
 
-    def live(self, win_size:int=32, search_size:int=64, start:int=0, stop:int=None, step:int=1, pad:bool=False, method:str=DISP_MAG, thresh:float=5.0, alpha:float=0.6, colormap:int=cv2.COLORMAP_JET, masked:float=None, font:int=cv2.FONT_HERSHEY_SIMPLEX, font_scale:float=0.5, font_color:tuple[int, int, int]=COLOR_WHITE, font_thickness:int=1, font_pad:int=8) -> None:
+    def live(self, win_size:int=32, search_size:int=64, overlap:int=0, start:int=0, stop:int=None, step:int=1, pad:bool=False, method:str=DISP_MAG, thresh:float=5.0, alpha:float=0.6, colormap:int=cv2.COLORMAP_JET, masked:float=None, font:int=cv2.FONT_HERSHEY_SIMPLEX, font_scale:float=0.5, font_color:tuple[int, int, int]=COLOR_WHITE, font_thickness:int=1, font_pad:int=8) -> None:
         '''
         Live computing and rendering
 
         Args:
             win_size (int) : search windows size (default=32)
             search_size (int) : search size (default=64)
+            overlap (int) : overlap between windows (default=0)
             start (int) : starting frame (default=0)
             stop (int) : ending frame (exclusive) (default=None)
             step (int) : step between frames (default=1)
@@ -651,10 +672,10 @@ class BOS(object):
         _, h, w, _ = self._raw.shape
 
         # setup computing values
-        raw_data, kernals, win_x, win_y, n, p = self._setup_compute(win_size, search_size, None, start, stop, step, pad)
+        raw_data, kernals, win_x, win_y, n, p = self._setup_compute(win_size, search_size, overlap, None, start, stop, step, pad)
 
         # create spiral
-        coords = _spiral_coords(win_x.max()+1, win_y.max()+1)
+        coords = _spiral_coords(len(win_x), len(win_y))
 
         # create data lists values
         drawn = np.zeros((n-1, h, w, 3), dtype=np.uint8)
@@ -675,13 +696,8 @@ class BOS(object):
                 col = coords[coord_inds[ind], 0]
 
                 # get window location
-                win_row = row * win_size
-                win_col = col * win_size
-
-                # if no padding
-                if not pad:
-                    win_row += p
-                    win_col += p
+                win_row = win_y[row]
+                win_col = win_x[col]
 
                 # pull window
                 win = kernals[ind:ind+1, win_row:win_row + win_size, win_col:win_col + win_size]
@@ -702,7 +718,7 @@ class BOS(object):
             img = drawn[ind]
 
             # resize
-            img = cv2.resize(img, (512, 512), interpolation=cv2.INTER_NEAREST)
+            img = cv2.resize(img, (512, 512), interpolation=INTER_NEAREST)
 
             # draw index
             if font != None:

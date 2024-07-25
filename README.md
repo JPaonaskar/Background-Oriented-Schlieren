@@ -151,6 +151,7 @@ _setup_compute(
 compute(
     win_size : int = 32,
     search_size : int = 64,
+    overlap : int = 0,
     space : int = None,
     start : int = 0,
     stop : int = None,
@@ -164,6 +165,7 @@ compute_multi(
     win_size : int = 32,
     search_size : int = 64,
     particle_size : int = 2,
+    overlap : int = 0,
     start : int = 0,
     stop : int = None,
     step : int = 1,
@@ -177,7 +179,7 @@ draw(
     thresh : float = 5.0,
     alpha : float = 0.6,
     colormap : int = cv2.COLORMAP_JET,
-    interplolation : int = cv2.INTER_NEAREST,
+    interplolation : int = INTER_NEAREST,
     masked : bool = False,
     start : int = 0,
     stop : int = None,
@@ -218,6 +220,7 @@ _live_render_cell(
 live(
     win_size : int = 32,
     search_size : int = 64,
+    overlap : int = 0,
     start : int = 0,
     stop : int = None,
     step : int = 1,
@@ -295,6 +298,12 @@ COLOR_BLACK = (0, 0, 0)
 COLOR_BLUE = (255, 0, 0)
 COLOR_GREEN = (0, 255, 0)
 COLOR_RED = (0, 0, 255)
+```
+
+**Interpolation**
+```python
+INTER_NEAREST = cv2.INTER_NEAREST
+INTER_CUBIC = cv2.INTER_CUBIC
 ```
 
 ### 4.3. Module: vectorized_tools
