@@ -160,7 +160,7 @@ def gaussian(s:np.ndarray) -> float:
     # output
     return dr
 
-def displacement(corr:np.ndarray, precision:type=np.float32, push_weight:float=0.01) -> tuple[np.ndarray, np.ndarray]:
+def displacement(corr:np.ndarray, precision:type=np.float32) -> tuple[np.ndarray, np.ndarray]:
     '''
     Find displacements at the sub pixel level
 
