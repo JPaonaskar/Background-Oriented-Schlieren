@@ -47,23 +47,21 @@ bos.read('frames')
 To overwrite existing data set the argument `append=False`.
 
 > [!TIP]
-> Any stored data can be visualized using the `.display(...)` method in `BOS()`.
+> Any stored data can be visualized using the `.display(...)` method.
 > The data (`dataname`) can be set to `DATA_RAW`, `DATA_COMPUTED`, or `DATA_DRAWN`.
 
 
 ### 4.1.3 Computing Displacements
 
 Displacements are computed using the `.compute(...)` method.
-The `win_size` controls the size of the window to search for while `search_size` controls the size of the area to search for the window
+The `win_size` controls the size of the window and `search_size` controls the size of the area to search for the window
 
 ```python
 bos.compute(win_size=8, search_size=16)
 ```
 
 > [!NOTE]
-> `search_size` must be larger than `win_size` and is usually best around 2x
-
-The selection of frames can be changed with the `start`, `stop` (exclusive), and `step`.
+> `search_size` must be larger than `win_size` and is usually best around `2 * win_size`
 
 
 ### 4.1.4 Drawing Displacements
@@ -78,11 +76,10 @@ bos.draw()
 > Draw has three `methods`: `DISP_X`, `DISP_Y`, and `DISP_MAG` (default).
 
 The data can be clipped using the `thresh` as the maximum value and `masked` as the minumum.
-Use `colormap` to set the colormap to any OpenCV color map.
 To modify the blending between the background and the data set `alpha` to between `0.0` (no bg) and `1.0` (only bg)
 
 ```python
-bos.draw(thresh=5.0, alpha-0.6, masked=0.5, colormap=cv2.COLORMAP_JET)
+bos.draw(thresh=5.0, alpha=0.6, masked=0.5)
 ```
 
 ### 4.1.5 Writing Data
@@ -103,7 +100,7 @@ bos.write('video.avi')
 > By default a video is outputed to the current working directory.
 
 > [!TIP]
-> The frames per section is set using `fps`.
+> The frames per second can be set using `fps`.
 
 ### 4.1.6 Live View
 
@@ -116,7 +113,7 @@ bos.live()
 
 > [!IMPORTANT]
 > Use `a` and `d` to take large steps between framse and `,` and `.` for single frames.
-> Use `s` to save the drawn frame
+> Use `s` to save the current frame
 
 ### 4.2. Module: schlieren
 
