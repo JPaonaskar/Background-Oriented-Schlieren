@@ -13,6 +13,8 @@ import cv2
 import numpy as np
 from tqdm import tqdm
 
+from concurrent.futures import ThreadPoolExecutor
+
 import vectorized_tools
 
 # display methods
@@ -213,11 +215,11 @@ class BOS(object):
                 raise ValueError(f'Expected all image to have the same shapes but got shapes {self._raw[0].shape} and {data[0].shape}')
 
             # append
-            self._raw = np.hstack([self._raw, np.array(data)])
+            self._raw = np.hstack([self._raw, np.array(data, dtype=np.uint8)])
 
         # write data
         else:
-            self._raw = np.array(data)
+            self._raw = np.array(data, dtype=np.uint8)
 
     def _setup_compute(self, win_size:int, search_size:int, overlap:int, space:int, start:int, stop:int, step:int, pad:bool) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, int, int]:
         '''
@@ -241,6 +243,7 @@ class BOS(object):
             n (int) : number of data points
             p (int) : padding size
         '''
+        print('Setting Up Compute')
         # setup slice
         if not stop:
             stop = len(self._raw)
@@ -248,10 +251,16 @@ class BOS(object):
             stop = stop - space
 
         # slice
-        raw_data = self._raw[start:stop:step].copy()
+        raw_data = self._raw[start:stop:step]
 
         # unpack shape values
-        n, h, w, d = self._raw.shape
+        n, h, w, d = raw_data.shape
+
+        print('Converting to Grayscale')
+
+        # convert BGR to greyscale if needed
+        if d == 3:
+            raw_data = vectorized_tools.grayscale(raw_data)
 
         # slice kernals
         if space:
@@ -261,12 +270,9 @@ class BOS(object):
         # tile kernal
         else:
             kernals = np.expand_dims(raw_data[0], axis=0)
-            kernals = np.tile(kernals, (n, 1, 1, 1))
+            kernals = np.tile(kernals, (n, 1, 1))
 
-        # convert BGR to greyscale if needed
-        if d == 3:
-            kernals = vectorized_tools.grayscale(kernals)
-            raw_data = vectorized_tools.grayscale(raw_data)
+        print('Padding')
 
         # time offset data
         raw_data = raw_data[1:]
@@ -280,6 +286,8 @@ class BOS(object):
 
         raw_data = empty
         del empty
+
+        print('Dividing into Windows')
 
         # add padding
         if not pad:
@@ -338,9 +346,8 @@ class BOS(object):
         # pre-allocate data (depth is u, v, length)
         data = np.zeros((n-1, len(win_y), len(win_x), 3))
 
-        # itterate though sections
-        print('Computing Frames')
-        for coord in tqdm(win_coords):
+        # task for threading
+        def process(coord:np.ndarray) -> tuple[int, int, np.ndarray, np.ndarray, np.ndarray]:
             # unpack output location
             row = coord[1]
             col = coord[0]
@@ -359,10 +366,32 @@ class BOS(object):
             corr = vectorized_tools.normxcorr2(search, win, mode='full')
             u, v = vectorized_tools.displacement(corr)
 
-            # store calcualted values
-            data[:, row, col, 0] = u
-            data[:, row, col, 1] = v
-            data[:, row, col, 2] = np.sqrt(np.square(u) + np.square(v))
+            # compute magnitude
+            m = np.sqrt(np.square(u) + np.square(v))
+
+            # output needed information to save data
+            return row, col, u, v, m
+        
+        # threading for speed
+        with ThreadPoolExecutor() as executor:
+            futures = []
+
+            # itterate though sections
+            print('Starting Processes')
+            for coord in tqdm(win_coords):
+                # start process
+                futures.append(executor.submit(process, coord))
+
+            # get frames
+            print("Computing Frames")
+            for future in tqdm(futures):
+                # add frame
+                row, col, u, v, m = future.result()
+
+                # store calcualted values
+                data[:, row, col, 0] = u
+                data[:, row, col, 1] = v
+                data[:, row, col, 2] = m
 
         # store computed data
         self._computed = data
@@ -512,6 +541,7 @@ class BOS(object):
         imgs = self._get_data(dataname=dataname)
 
         # shift unsigned 8-bit
+        imgs = imgs.astype(np.float16)
         imgs = imgs - np.min(imgs) # 0.0 - max
         imgs = imgs * 255.0 / np.max(imgs) # 0.0 - 255.0
         imgs = imgs.astype(np.uint8) # 8bit

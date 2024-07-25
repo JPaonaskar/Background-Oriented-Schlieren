@@ -44,13 +44,17 @@ def grayscale(images:np.ndarray) -> np.ndarray:
     Returns:
         out (np.ndarray) : batch of grayscale images
     '''
-    # get channels
-    red = images[:, :, :, 2]
-    green = images[:, :, :, 1]
-    blue = images[:, :, :, 0]
+    # add red channel
+    out = images[:, :, :, 2].astype(np.float16) * 0.299
 
-    # convert
-    out = (0.299 * red + 0.587 * green + 0.114 * blue).astype(np.uint8)
+    # add green channel
+    out += images[:, :, :, 1].astype(np.float16) * 0.587
+
+    # add blue channel
+    out += images[:, :, :, 0].astype(np.float16) * 0.114
+
+    # convert to uint8
+    out = out.astype(np.uint8)
 
     # return
     return out
