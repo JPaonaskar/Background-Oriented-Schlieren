@@ -10,7 +10,7 @@
 
 ### 4.1 Quick Start
 
-#### 4.1.1 BOS Class
+### 4.1.1 BOS Class
 
 `class BOS()` manages data and processing as the backgound oriented schlieren.
 Generally this is all that is needed to perform BOS.
@@ -22,9 +22,9 @@ bos = schlieren.BOS()
 ```
 
 
-#### 4.1.2 Reading Data
+### 4.1.2 Reading Data
 
-Raw data can be read using `.read(...)` method in `BOS()`.
+Raw data can be read using `.read(...)` method.
 This method can read a single image,
 
 ```python
@@ -51,9 +51,9 @@ To overwrite existing data set the argument `append=False`.
 > The data can be set to `DATA_RAW`, `DATA_COMPUTED`, and `DATA_DRAWN`.
 
 
-#### 4.1.3 Computing Displacements
+### 4.1.3 Computing Displacements
 
-Displacements are computed using the `.compute(...)` method in `BOS()`.
+Displacements are computed using the `.compute(...)` method.
 
 ```python
 bos.compute()
@@ -66,7 +66,7 @@ bos.compute(win_size=8, search_size=16)
 ```
 
 > [!NOTE]
-> `search_size` must be larger than win_size and is usually best around 2x
+> `search_size` must be larger than `win_size` and is usually best around 2x
 
 The selection of frames can be changed with the `start`, `stop` (exclusive), and `step`.
 
@@ -78,15 +78,84 @@ bos.compute(start=0, stop=60, step=2)
 > When `stop=None` the last frame is used
 
 
-#### 4.1.4 Drawing Displacements
+### 4.1.4 Drawing Displacements
 
-#### 4.1.5 Writing Data
+Displacements are drawn using the `.draw(...)` method.
 
-#### 4.1.6 Live View
+```python
+bos.draw()
+```
+
+By default the displacement magnitudes are drawn but this can also be set as X or Y displacements.
+
+```python
+bos.draw(method=DISP_X)
+
+bos.draw(method=DISP_Y)
+```
+
+The data can be clipped using the `thresh` as the maximum value and `masked` as the minumum.
+Use `colormap` to set the colormap to any opencv color map.
+To modify the blending between the background and the data set `alpha` to between 0 (no bg) and 1 (only bg)
+
+```python
+bos.draw(thresh=5.0, alpha-0.6, masked=0.5, colormap=cv2.COLORMAP_JET)
+```
+
+Once again the selection of frames can be changed with the `start`, `stop` (exclusive), and `step`.
+
+```python
+bos.draw(start=0, stop=60, step=2)
+```
+
+> [!WARNING]
+> These values must match the values passed to the `.compute(...)` method.
+
+### 4.1.5 Writing Data
+
+The `.write(...)` method writes data as images to a folder
+
+```python
+bos.write('frames')
+```
+
+or a video
+
+```python
+bos.write('video.avi')
+```
+
+> [!TIP]
+> The frames per section is set using `fps`.
+
+> [!TIP]
+> By default a video is outputed to the current working directory.
+
+Once again the selection of frames can be changed with the `start`, `stop` (exclusive), and `step`.
+
+```python
+bos.write(start=0, stop=60, step=2)
+```
+
+> [!WARNING]
+> These values slice relitive to the data rather then the read images.
+
+### 4.1.6 Live View
+
+Data can be processed and rendered live using the `.live(...)` method.
+This method contains all the arguments as compute, draw, and display with the exception of interpolation.
+
+```python
+bos.live()
+```
+
+> [!IMPORTANT]
+> Use `a` and `d` to take large steps between framse and `,` and `.` for single frames.
+> Use `s` to save the drawn frame
 
 ### 4.2. Module: schlieren
 
-#### 4.2.1. Classes
+### 4.2.1. Classes
 
 **`class BOS()`**
 
@@ -205,7 +274,7 @@ write(
 ) -> None
 ```
 
-#### 4.2.2. Functions
+### 4.2.2. Functions
 
 ```python
 _spiral_coords(
@@ -214,7 +283,7 @@ _spiral_coords(
 ) -> coords : np.ndarray
 ```
 
-#### 4.2.3. Constants
+### 4.2.3. Constants
 
 **Display Methods**
 ```python
@@ -256,7 +325,7 @@ COLOR_RED = (0, 0, 255)
 
 ### 4.3. Module: vectorized_tools
 
-#### 4.3.1. Functions
+### 4.3.1. Functions
 
 ```python
 conv2D(
@@ -310,7 +379,7 @@ displacement(
 ]
 ```
 
-#### 4.3.2. Constants
+### 4.3.2. Constants
 
 **convolution modes**
 ```python
