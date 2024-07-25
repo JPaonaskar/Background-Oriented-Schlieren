@@ -1,12 +1,30 @@
 # Background-Oriented-Schlieren
 
-## Intoduction
+## 1. Intoduction
 
-## Examples
+## 2. Examples
 
-## Algorithm
+## 3. Algorithm
 
-## Documentation
+## 4. Documentation
 
-## Style
+### 4.1. Module: schlieren
+
+#### 4.1.1. Classes
+
+##### 4.1.1.1. BOS
+
+#### 4.1.2. Functions
+
+#### 4.1.3. Constants
+
+### 4.2. Module: vectorized_tools
+
+#### 4.1.1. Classes
+
+#### 4.1.2. Functions
+
+#### 4.1.3. Constants
+
+## Style Guide
 https://google.github.io/styleguide/pyguide.html
