@@ -105,7 +105,7 @@ bos.write('video.avi')
 ### 4.1.6 Live View
 
 Data can be processed and rendered live using the `.live(...)` method.
-This method contains all the arguments as compute, draw, and display with the exception of interpolation.
+This method contains all the arguments as compute, draw, and display with the addition of compute parameters for saving.
 
 ```python
 bos.live()
@@ -226,10 +226,15 @@ live(
     step : int = 1,
     pad : bool = False,
 
+    save_win_size : int = 32
+    save_search_size : int = 64
+    save_overlap : int = 0
+
     method : str = DISP_MAG,
     thresh : float = 5.0,
     alpha : float = 0.6,
     colormap : int = cv2.COLORMAP_JET,
+    interplolation : int = INTER_NEAREST,
     masked : float = None,
 
     font : int = cv2.FONT_HERSHEY_SIMPLEX,

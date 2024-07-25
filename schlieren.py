@@ -440,7 +440,10 @@ class BOS(object):
 
         # slice data
         drawn = self._raw[start:stop:step].copy()
-        data = self._computed[start:stop:step].copy()
+        data = self._computed.copy()
+
+        # time offset data
+        drawn = drawn[1:]
 
         # store shape
         n, h, w, d = drawn.shape
@@ -633,7 +636,7 @@ class BOS(object):
         x = (x - w) // 2
         y = (y - h) // 2
 
-        cell = win.copy() #search[:, y:y+h, x:x+w].copy()
+        cell = search[:, y:y+h, x:x+w].copy()
         cell = np.stack([cell, cell, cell], axis=3)
 
         # compute correlation and calcualte displacements
@@ -670,7 +673,7 @@ class BOS(object):
         # output
         return cell
 
-    def live(self, win_size:int=32, search_size:int=64, overlap:int=0, start:int=0, stop:int=None, step:int=1, pad:bool=False, method:str=DISP_MAG, thresh:float=5.0, alpha:float=0.6, colormap:int=cv2.COLORMAP_JET, masked:float=None, font:int=cv2.FONT_HERSHEY_SIMPLEX, font_scale:float=0.5, font_color:tuple[int, int, int]=COLOR_WHITE, font_thickness:int=1, font_pad:int=8) -> None:
+    def live(self, win_size:int=32, search_size:int=64, overlap:int=0, start:int=0, stop:int=None, step:int=1, pad:bool=False, save_win_size:int=32, save_search_size:int=64, save_overlap:int=0, method:str=DISP_MAG, thresh:float=5.0, alpha:float=0.6, colormap:int=cv2.COLORMAP_JET, interplolation=INTER_NEAREST, masked:float=None, font:int=cv2.FONT_HERSHEY_SIMPLEX, font_scale:float=0.5, font_color:tuple[int, int, int]=COLOR_WHITE, font_thickness:int=1, font_pad:int=8) -> None:
         '''
         Live computing and rendering
 
@@ -683,10 +686,15 @@ class BOS(object):
             step (int) : step between frames (default=1)
             pad (bool) : pad edges (default=False)
 
+            save_win_size (int) : search windows size for saving (default=32)
+            save_search_size (int) : search size for saving (default=64)
+            save_overlap (int) : overlap between windows for saving (default=0)
+
             method (str) : drawing method (default=DISP_MAG)
             thresh (float) : value maximum (defult=5.0)
             alpha (float) : blending between raw and computed (defult=0.6)
             colormap (int) : colormap (default=cv2.COLORMAP_JET)
+            interplolation (int) : interplolation method (default=INTER_NEAREST)
             masked (float) : treat low displacements as a mask (default=None)
 
             font (int) : overlay font, None displays no text (default=cv2.FONT_HERSHEY_SIMPLEX)
@@ -793,6 +801,21 @@ class BOS(object):
             elif k == ord('.'):
                 if ind < len(drawn) - 1:
                     ind += 1
+
+            # save
+            elif k == ord('s'):
+                # get slices
+                i0 = start
+                i1 = start + ind * step + 1
+                di = ind * step
+
+                # compute and draw frame
+                self.compute(win_size=save_win_size, search_size=save_search_size, overlap=save_overlap, start=i0, stop=i1, step=di, pad=pad)
+                self.draw(method=method, thresh=thresh, alpha=alpha, colormap=colormap, interplolation=interplolation, masked=masked, start=i0, stop=i1, step=di)
+                
+                # save frame
+                self.write('results')
+                print('Frame Saved')
 
         # close window
         cv2.destroyWindow('Live')
