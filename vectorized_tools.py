@@ -12,13 +12,18 @@ Resources:
 import numpy as np
 from scipy.signal import fftconvolve
 
-def conv2D(images:np.ndarray, kernals:np.ndarray, mode:str='full') -> np.ndarray:
+# convolution modes
+CONV_MODE_FULL = 'full'
+CONV_MODE_VALID = 'valid'
+
+def conv2D(images:np.ndarray, kernals:np.ndarray, mode:str=CONV_MODE_FULL) -> np.ndarray:
     '''
     2d Convolution
 
     Args:
         images (np.ndarray) : batch of images
         kernals (np.ndarray) : batch of kernals
+        mode (str) : convolution mode (default=CONV_MODE_FULL)
 
     Returns:
         out (np.ndarray) : batch of convolutions
@@ -92,7 +97,7 @@ def batch_multiply(images:np.ndarray, values:np.ndarray) -> np.ndarray:
     # output
     return images
 
-def normxcorr2(images:np.ndarray, kernals:np.ndarray, mode:str='full') -> np.ndarray:
+def normxcorr2(images:np.ndarray, kernals:np.ndarray, mode:str=CONV_MODE_FULL) -> np.ndarray:
     '''
     Normalized cross correlation for batches
     Modified version of Sabrewarrior/normxcorr2-python (original code is in /normxcorr2-python)
@@ -100,6 +105,7 @@ def normxcorr2(images:np.ndarray, kernals:np.ndarray, mode:str='full') -> np.nda
     Args:
         images (np.ndarray) : batch of images
         kernals (np.ndarray) : batch of kernals
+        mode (str) : convolution mode (default=CONV_MODE_FULL)
 
     Returns:
         corr (np.ndarray) : batch of correlation values

@@ -101,6 +101,12 @@ def _spiral_coords(w:int, h:int) -> np.ndarray:
 class BOS(object):
     '''
     Schlieren class to manage reading, writing, and computing
+
+    Args: 
+        None
+
+    Returns:
+        object (BOS) : BOS instance
     '''
     def __init__(self) -> None:
         self._raw = None
@@ -209,7 +215,7 @@ class BOS(object):
         else:
             self._raw = np.array(data)
 
-    def _setup_compute(self, win_size:int, search_size:int, space:int, start:int, stop:int, step:int, pad:bool) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, int]:
+    def _setup_compute(self, win_size:int, search_size:int, space:int, start:int, stop:int, step:int, pad:bool) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, int, int]:
         '''
         Setup data and other values for computing
 
@@ -342,7 +348,7 @@ class BOS(object):
         # store computed data
         self._computed = data
 
-    def draw(self, method:str=DISP_MAG, thresh:float=5.0, alpha:float=0.6, colormap=cv2.COLORMAP_JET, interplolation=cv2.INTER_NEAREST, masked:bool=False, start:int=0, stop:int=None, step:int=1) -> None:
+    def draw(self, method:str=DISP_MAG, thresh:float=5.0, alpha:float=0.6, colormap:int=cv2.COLORMAP_JET, interplolation:int=cv2.INTER_NEAREST, masked:bool=False, start:int=0, stop:int=None, step:int=1) -> None:
         '''
         Draw computed data
 
@@ -534,7 +540,7 @@ class BOS(object):
         # close window
         cv2.destroyWindow(dataname)
     
-    def _live_render_cell(self, win:np.ndarray, search:np.ndarray, method:str=DISP_MAG, thresh:float=5.0, alpha:float=0.6, colormap=cv2.COLORMAP_JET, masked:bool=False) -> np.ndarray:
+    def _live_render_cell(self, win:np.ndarray, search:np.ndarray, method:str=DISP_MAG, thresh:float=5.0, alpha:float=0.6, colormap:int=cv2.COLORMAP_JET, masked:bool=False) -> np.ndarray:
         '''
         Compute and draw a cell
 
@@ -593,7 +599,7 @@ class BOS(object):
         # output
         return cell
 
-    def live(self, win_size:int=32, search_size:int=64, start:int=0, stop:int=None, step:int=1, pad:bool=False, method:str=DISP_MAG, thresh:float=5.0, alpha:float=0.6, colormap=cv2.COLORMAP_JET, masked:bool=False, font:int=cv2.FONT_HERSHEY_SIMPLEX, font_scale:float=0.5, font_color:tuple[int, int, int]=COLOR_WHITE, font_thickness:int=1, font_pad:int=8) -> None:
+    def live(self, win_size:int=32, search_size:int=64, start:int=0, stop:int=None, step:int=1, pad:bool=False, method:str=DISP_MAG, thresh:float=5.0, alpha:float=0.6, colormap:int=cv2.COLORMAP_JET, masked:bool=False, font:int=cv2.FONT_HERSHEY_SIMPLEX, font_scale:float=0.5, font_color:tuple[int, int, int]=COLOR_WHITE, font_thickness:int=1, font_pad:int=8) -> None:
         '''
         Live computing and rendering
 
@@ -604,11 +610,13 @@ class BOS(object):
             stop (int) : ending frame (exclusive) (default=None)
             step (int) : step between frames (default=1)
             pad (bool) : pad edges (default=False)
+
             method (str) : drawing method (default=DISP_MAG)
             thresh (float) : value maximum (defult=5.0)
             alpha (float) : blending between raw and computed (defult=0.6)
             colormap (int) : colormap (default=cv2.COLORMAP_JET)
             masked (float) : treat low displacements as a mask (default=None)
+
             font (int) : overlay font, None displays no text (default=cv2.FONT_HERSHEY_SIMPLEX)
             font_scale (float) : overlay font scale (default=0.5)
             font_color (tuple[int, int, int]) : overlay font color (default=COLOR_WHITE)
