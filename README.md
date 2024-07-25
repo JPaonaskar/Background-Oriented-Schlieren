@@ -61,7 +61,10 @@ bos.compute(win_size=8, search_size=16)
 ```
 
 > [!NOTE]
-> `search_size` must be larger than `win_size` and is usually best around `2 * win_size`
+> `search_size` must be larger than `win_size` and is usually best when the differance is larger than the expected displacements
+
+> [!TIP]
+> `overlap` can be used for super resolution
 
 
 ### 4.1.4 Drawing Displacements
@@ -114,6 +117,9 @@ bos.live()
 > [!IMPORTANT]
 > Use `a` and `d` to take large steps between framse and `,` and `.` for single frames.
 > Use `s` to save the current frame
+
+> [!TIP]
+> The save resolution can be set seperately with `_save...` arguments
 
 ### 4.2. Module: schlieren
 
