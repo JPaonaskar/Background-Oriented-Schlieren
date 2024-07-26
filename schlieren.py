@@ -659,7 +659,7 @@ class BOS(object):
 
         # apply mask
         if masked:
-            mask = np.bitwise_or(mask, data < masked)
+            mask = np.bitwise_or(mask, data <= masked)
 
         # normalize data
         data = (data * 255 / thresh).astype(np.uint8)
