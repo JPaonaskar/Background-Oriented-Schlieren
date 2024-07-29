@@ -99,7 +99,7 @@ def batch_size_test(batch_sizes:list[int], test_window:float=5.0, win_size:int=3
         win_size (int) : window size (default=32)
         search_size (int) : search size (default=64)
         noise_scale (float) : noise amplitude (default=0.1)
-        plot (bool) : plot results (default=True)
+        show (bool) : show plot results (default=True)
 
     Returns:
         None

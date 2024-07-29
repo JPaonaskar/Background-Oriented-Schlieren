@@ -128,14 +128,14 @@ bos.live()
 **`class BOS()`**
 
 ```python
-read(
+def read(
     path : str,
     append : bool = False
 ) -> None
 ```
 
 ```python
-_setup_compute(
+def _setup_compute(
     win_size : int,
     search_size : int,
     space : int,
@@ -154,7 +154,7 @@ _setup_compute(
 ```
 
 ```python
-compute(
+def compute(
     win_size : int = 32,
     search_size : int = 64,
     overlap : int = 0,
@@ -167,7 +167,7 @@ compute(
 ```
 
 ```python
-compute_multi(
+def compute_multi(
     win_size : int = 32,
     search_size : int = 64,
     particle_size : int = 2,
@@ -180,7 +180,7 @@ compute_multi(
 ```
 
 ```python
-draw(
+def draw(
     method : str = DISP_MAG,
     thresh : float = 5.0,
     alpha : float = 0.6,
@@ -194,13 +194,13 @@ draw(
 ```
 
 ```python
-_get_data(
+def _get_data(
     dataname : str = DATA_DRAWN
 ) -> np.ndarray
 ```
 
 ```python
-display(
+def display(
     dataname : str = DATA_DRAWN,
     font : int = cv2.FONT_HERSHEY_SIMPLEX,
     font_scale : float = 0.5,
@@ -211,7 +211,7 @@ display(
 ```
 
 ```python
-_live_render_cell(
+def _live_render_cell(
     win : np.ndarray,
     search : np.ndarray,
     method : str = DISP_MAG,
@@ -223,7 +223,7 @@ _live_render_cell(
 ```
 
 ```python
-live(
+def live(
     win_size : int = 32,
     search_size : int = 64,
     overlap : int = 0,
@@ -252,7 +252,7 @@ live(
 ```
 
 ```python
-write(
+def write(
     path : str = None,
     dataname : str = DATA_DRAWN,
     fps : float = 30.0,
@@ -265,7 +265,7 @@ write(
 ### 4.2.2. Functions
 
 ```python
-_spiral_coords(
+def _spiral_coords(
     x : int,
     y : int
 ) -> coords : np.ndarray
@@ -322,7 +322,7 @@ INTER_CUBIC = cv2.INTER_CUBIC
 ### 4.3.1. Functions
 
 ```python
-conv2D(
+def conv2D(
     images : np.ndarray,
     kernals : np.ndarray,
     mode : str = 'full'
@@ -330,27 +330,27 @@ conv2D(
 ```
 
 ```python
-grayscale(
+def grayscale(
     images : np.ndarray
 ) -> out : np.ndarray
 ```
 
 ```python
-batch_subtract(
+def batch_subtract(
     images : np.ndarray,
     values : np.ndarray
 ) -> out : np.ndarray
 ```
 
 ```python
-batch_multiply(
+def batch_multiply(
     images : np.ndarray,
     values : np.ndarray
 ) -> out : np.ndarray
 ```
 
 ```python
-normxcorr2(
+def normxcorr2(
     images : np.ndarray,
     keranls : np.ndarray,
     mode : str = 'full'
@@ -358,13 +358,13 @@ normxcorr2(
 ```
 
 ```python
-gaussian(
+def gaussian(
     s : np.ndarray
 ) -> dr : float
 ```
 
 ```python
-displacement(
+def displacement(
     corr : np.ndarray,
     precision : type
 ) -> tuple[
@@ -379,6 +379,47 @@ displacement(
 ```python
 CONV_MODE_FULL = 'full'
 CONV_MODE_VALID = 'valid'
+```
+
+### 4.4. Module: vectorized_tools
+
+### 4.4.1. Functions
+
+```python
+def noise(
+    shape : tuple,
+    scale : float = 0.1
+) -> np.ndarray
+```
+
+```python
+def synthetic_dataset(
+    batch_size : int,
+    win_size : int = 32,
+    search_size : int = 64,
+    noise_scale : float = 0.1
+) -> np.ndarray
+```
+
+```python
+def batch_size_test(
+    batch_sizes : list[int],
+    test_window : float = 5.0,
+    win_size : int = 32,
+    search_size : int = 64,
+    noise_scale : float = 0.1,
+    show : bool = True
+) -> None
+```
+
+### 4.4.2. Constants
+
+```python
+PATTERN = np.array([
+    [0, 1, 0],
+    [1, 1, 1],
+    [0, 1, 0]
+])
 ```
 
 ## Target Style
