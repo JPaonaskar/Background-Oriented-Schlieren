@@ -425,6 +425,7 @@ PATTERN = np.array([
 ## Bugs
 
 1. Noise give very large displacements. Values are removed in vector_tools.py -> displacements() but results are still not ideal
+2. Write function is clucky and needs to be streamlined
 
 ## Target Style
 https://google.github.io/styleguide/pyguide.html
