@@ -268,10 +268,10 @@ class BOS(object):
         data = np.array(data)
 
         # slice data
-        y = data[:, 0].astype(np.int16)
-        x = data[:, 1].astype(np.int16)
-        v = data[:, 2]
-        u = data[:, 3]
+        x = data[:, 0].astype(np.int16)
+        y = data[:, 1].astype(np.int16)
+        u = data[:, 2]
+        v = data[:, 3]
 
         # remove bad values
         mask = np.bitwise_and(u == 1, v == 0)
@@ -281,19 +281,32 @@ class BOS(object):
         # calulate magnitude
         m = np.sqrt(np.square(u) + np.square(v))
 
+        # get step sizes
+        dx = np.unique(x)
+        dx.sort()
+        dx = np.amin(dx[1:] - dx[:-1])
+
+        dy = np.unique(y)
+        dy.sort()
+        dy = np.amin(dy[1:] - dy[:-1])
+
+        # transform coordinates
+        x = x // dx
+        y = y // dy
+
         # get padding
         padx = x.min()
         pady = y.min()
 
         # create image (ovewrite data)
-        w = x.max() + padx
-        h = y.max() + pady
+        w = (x.max() + padx)
+        h = (y.max() + pady)
         data = np.zeros((1, h, w, 3))
 
         # store data points
-        data[0, x, y, 0] = u
-        data[0, x, y, 1] = v
-        data[0, x, y, 2] = m
+        data[0, y, x, 0] = u
+        data[0, y, x, 1] = v
+        data[0, y, x, 2] = m
 
         # save to computed data
         self._computed = data
@@ -1042,6 +1055,12 @@ class BOS(object):
 
             # release writer
             video_out.release()
+
+        # check if path is for an image
+        elif os.path.splitext(path)[1] in EXTS_IMAGE:
+            # write first image
+            print("Writting Single Image")
+            cv2.imwrite(path, imgs[0])
 
         # check if path is for a directory
         elif '' in os.path.splitext(path)[1]:
