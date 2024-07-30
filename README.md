@@ -135,6 +135,13 @@ def read(
 ```
 
 ```python
+    def read_jpiv(
+        path : str,
+        stacked : bool = True
+) -> None
+```
+
+```python
 def _setup_compute(
     win_size : int,
     search_size : int,
@@ -258,7 +265,9 @@ def write(
     fps : float = 30.0,
     start : int = 0,
     stop : int = None,
-    step : int = 1
+    step : int = 1,
+    extention : str = '.jpg',
+    stacked : bool = False
 ) -> None
 ```
 
@@ -422,10 +431,14 @@ PATTERN = np.array([
 ])
 ```
 
-## Bugs
+## Bugs and Tasks
 
 1. Noise give very large displacements. Values are removed in vector_tools.py -> displacements() but results are still not ideal
 2. Write function is clucky and needs to be streamlined
+3. Add support for non-stacked JPIV images (or remove feature)
+4. Streamline slicing data (add options like Cascade / Pair / etc.)
+5. Implement multi-pass
+6. Add blur/smoothing when reading images
 
 ## Target Style
 https://google.github.io/styleguide/pyguide.html
