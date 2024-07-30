@@ -422,5 +422,9 @@ PATTERN = np.array([
 ])
 ```
 
+## Bugs
+
+1. Noise give very large displacements. Values are removed in vector_tools.py -> displacements() but results are still not ideal
+
 ## Target Style
 https://google.github.io/styleguide/pyguide.html

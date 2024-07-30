@@ -202,7 +202,7 @@ def displacement(corr:np.ndarray, precision:type=np.float32) -> tuple[np.ndarray
     i, unique, counts = np.unique(i, return_index=True, return_counts=True) # ISSUE <- returns the furthest upper right value
 
     # remove non-unique values
-    mask = counts == 1
+    mask = (counts == 1)
 
     i = i[mask]
     x = x[unique][mask]
@@ -259,6 +259,13 @@ def displacement(corr:np.ndarray, precision:type=np.float32) -> tuple[np.ndarray
 
     temp[mask] = v
     v = temp.copy()
+
+    # remove out of bound values (cannot be outside of corr image)
+    mask = np.abs(u) > w * 0.5
+    mask = np.bitwise_or(mask, np.abs(v) > h * 0.5)
+
+    u[mask] = np.nan
+    v[mask] = np.nan
 
     # output
     return u, v

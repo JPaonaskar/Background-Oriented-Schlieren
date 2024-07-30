@@ -170,7 +170,7 @@ class BOS(object):
             # if file is an image
             if ext in EXTS_IMAGE:
                 # read image
-                img = cv2.imread(filepath)
+                img = cv2.imread(path)
 
                 # add image
                 data.append(img)
@@ -503,7 +503,7 @@ class BOS(object):
 
     def _get_data(self, dataname:str=DATA_DRAWN) -> np.ndarray:
         '''
-        Display drawn data
+        Get humanized data
 
         Args:
             dataname (str) : data to display (default=DATA_DRAWN)
@@ -514,10 +514,23 @@ class BOS(object):
         # get images
         data = None
         if dataname == DATA_RAW:
+            # get raw data
             data = self._raw
         elif dataname == DATA_COMPUTED:
+            # get compuited data
             data = self._computed
+            
+            # shift unsigned 8-bit
+            data = data.astype(np.float32)
+            data = data - np.nanmin(data) # 0.0 - max
+            data = data * 255.0 / np.nanmax(data) # 0.0 - 255.0
+            data = data.astype(np.uint8) # 8bit
+
+            # replace nan with zeros
+            data = np.nan_to_num(data, nan=127)
+
         elif dataname == DATA_DRAWN:
+            # get drawn data
             data = self._drawn
         else:
             ValueError(f'{dataname} in not a valid dataset')
@@ -542,12 +555,6 @@ class BOS(object):
         '''
         # get data
         imgs = self._get_data(dataname=dataname)
-
-        # shift unsigned 8-bit
-        imgs = imgs.astype(np.float16)
-        imgs = imgs - np.min(imgs) # 0.0 - max
-        imgs = imgs * 255.0 / np.max(imgs) # 0.0 - 255.0
-        imgs = imgs.astype(np.uint8) # 8bit
 
         # placeholders
         ind = 0
@@ -820,7 +827,7 @@ class BOS(object):
         # close window
         cv2.destroyWindow('Live')
 
-    def write(self, path:str=None, dataname:str=DATA_DRAWN, fps:float=30.0, start:int=0, stop:int=None, step:int=1) -> None:
+    def write(self, path:str=None, dataname:str=DATA_DRAWN, fps:float=30.0, start:int=0, stop:int=None, step:int=1, extention:str='.jpg') -> None:
         '''
         Write image or video
 
@@ -831,12 +838,16 @@ class BOS(object):
             start (int) : starting frame (default=0)
             stop (int) : ending frame (exclusive) (default=None)
             step (int) : step between frames (default=1)
+            extention (str) : image file extention (default='.jpg)
 
         Returns:
             None
         '''
         # get data
         imgs = self._get_data(dataname=dataname)
+
+        # slice
+        imgs = imgs[start:stop:step]
 
         # pick current working directory and default to video if no path is given
         if not path:
@@ -887,7 +898,7 @@ class BOS(object):
             # write images
             print("Writting Images")
             for i, frame in tqdm(enumerate(imgs)):
-                cv2.imwrite(os.path.join(path, f'frame{i:04d}.jpg'), frame)
+                cv2.imwrite(os.path.join(path, f'frame{i:04d}{extention}'), frame)
 
         else:
             raise ValueError(f'Expected path to be direcotry or .avi file but got {path}')
