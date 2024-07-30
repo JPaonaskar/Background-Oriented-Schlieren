@@ -30,6 +30,7 @@ DATA_DRAWN = 'drawn'
 # file extentions
 EXTS_IMAGE = ['.tif', '.jpg', '.png']
 EXTS_VIDEO = ['.avi']
+EXTS_JPIV = '.jvc'
 
 # keys
 KEY_BACKSPACE = 8
@@ -220,6 +221,131 @@ class BOS(object):
         # write data
         else:
             self._raw = np.array(data, dtype=np.uint8)
+
+    def read_jpiv(self, path:str, stacked:bool=True) -> None:
+        '''
+        Read JPIV result file into computed data
+
+        Args:
+            path (str) : path to JPIV file, will read stored image if named the same
+            stacked (bool) : image is two frames stacked (default=True)
+
+        Returns:
+            None
+        '''
+        # normalize path
+        path = os.path.normpath(path)
+
+        # get full path
+        path = os.path.abspath(path)
+        
+        # validate path
+        if not os.path.isfile(path):
+            raise FileNotFoundError(f'File does not exist: {path}')
+        elif os.path.splitext(path)[1] != EXTS_JPIV:
+            raise ValueError(f'Expected {EXTS_JPIV} file but got {os.path.basename(path)}')
+        
+        # read file
+        data = []
+        with open(path, 'r') as f:
+            # read lines
+            line = f.readline()
+            while line:
+                line_data = line.strip().split(' ')
+
+                # convert to numerical values
+                line_values = []
+                for value in line_data:
+                    line_values.append(float(value))
+
+                # save to data
+                data.append(line_values)
+
+                # read new line
+                line = f.readline()
+
+        # convert to numpy
+        data = np.array(data)
+
+        # slice data
+        y = data[:, 0].astype(np.int16)
+        x = data[:, 1].astype(np.int16)
+        v = data[:, 2]
+        u = data[:, 3]
+
+        # remove bad values
+        mask = np.bitwise_and(u == 1, v == 0)
+        u[mask] = np.nan
+        v[mask] = np.nan
+
+        # calulate magnitude
+        m = np.sqrt(np.square(u) + np.square(v))
+
+        # get padding
+        padx = x.min()
+        pady = y.min()
+
+        # create image (ovewrite data)
+        w = x.max() + padx
+        h = y.max() + pady
+        data = np.zeros((1, h, w, 3))
+
+        # store data points
+        data[0, x, y, 0] = u
+        data[0, x, y, 1] = v
+        data[0, x, y, 2] = m
+
+        # save to computed data
+        self._computed = data
+
+        # get other files
+        directory = os.path.dirname(path)
+        files = os.listdir(directory)
+
+        # check for match
+        name = os.path.splitext(os.path.basename(path))[0]
+        image_path = None
+
+        for file in files:
+            # image name matches file name
+            filename, ext = os.path.splitext(file)
+            if (filename in name) and (ext in EXTS_IMAGE):
+                # save and stop looking
+                image_path = os.path.join(directory, file)
+                break
+
+        # if image file was found
+        if image_path:
+            # feedback
+            print(f'Found image {os.path.basename(image_path)}')
+
+            # read image file
+            image = cv2.imread(image_path)
+
+            # split stacked
+            if stacked:
+                # unpack shape
+                h, w, _ = image.shape
+
+                # slice
+                images = np.zeros((2, h // 2, w, 3), dtype=np.uint8)
+
+                # store each image
+                images[0] = image[0:h//2, :, :]
+                images[1] = image[h//2:, :, :]
+
+            # other methods
+            else:
+                NotImplementedError('Currently does not support non-stacked images')
+        else:
+            # feedback
+            print('No image found')
+
+            # open blank
+            images = np.zeros((2, h, w, 3))
+
+        # save image
+        self._raw = images
 
     def _setup_compute(self, win_size:int, search_size:int, overlap:int, space:int, start:int, stop:int, step:int, pad:bool) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, int, int]:
         '''
@@ -436,7 +562,7 @@ class BOS(object):
         '''
         # setup slice
         if not stop:
-            stop = len(self._computed)
+            stop = len(self._computed) + 1
 
         # slice data
         drawn = self._raw[start:stop:step].copy()
@@ -824,10 +950,20 @@ class BOS(object):
                 self.write('results')
                 print('Frame Saved')
 
+            # save stacked image for jpiv
+            elif k == ord('j'):
+                # get slices
+                i0 = start
+                i1 = start + ind * step + 1
+                di = ind * step
+                
+                # save frame
+                self.write('jpiv', dataname=DATA_RAW, start=i0, stop=i1, step=di, extention='.png', stacked=True)
+
         # close window
         cv2.destroyWindow('Live')
 
-    def write(self, path:str=None, dataname:str=DATA_DRAWN, fps:float=30.0, start:int=0, stop:int=None, step:int=1, extention:str='.jpg') -> None:
+    def write(self, path:str=None, dataname:str=DATA_DRAWN, fps:float=30.0, start:int=0, stop:int=None, step:int=1, extention:str='.jpg', stacked:bool=False) -> None:
         '''
         Write image or video
 
@@ -839,6 +975,7 @@ class BOS(object):
             stop (int) : ending frame (exclusive) (default=None)
             step (int) : step between frames (default=1)
             extention (str) : image file extention (default='.jpg)
+            stacked (bool) : stack referance frame on top of frame (default=False)
 
         Returns:
             None
@@ -848,6 +985,23 @@ class BOS(object):
 
         # slice
         imgs = imgs[start:stop:step]
+
+        # stack raw images image
+        if (dataname == DATA_RAW and stacked):
+            # unpack shape
+            n, h, w, d = imgs.shape
+
+            # prealocate stacked
+            stacked = np.zeros((n-1, h * 2, w, d))
+
+            # store frames
+            stacked[:, h:, :, :] = imgs[1:]
+
+            # store referance
+            stacked[:, :h, :, :] = imgs[0]
+
+            # overwrite old image
+            imgs = stacked
 
         # pick current working directory and default to video if no path is given
         if not path:
