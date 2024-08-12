@@ -81,7 +81,7 @@ bos.draw()
 > Draw has three `methods`: `DISP_X`, `DISP_Y`, and `DISP_MAG` (default).
 
 The data can be clipped using the `thresh` as the maximum value and `masked` as the minumum.
-To modify the blending between the background and the data set `alpha` to between `0.0` (no bg) and `1.0` (only bg)
+To modify the blending between the background and the data set `alpha` to between `0.0` (only bg) and `1.0` (no bg)
 
 ```python
 bos.draw(thresh=5.0, alpha=0.6, masked=0.5)
