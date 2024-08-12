@@ -1,5 +1,7 @@
 # Background-Oriented-Schlieren
 
+Images and sample data to come!
+
 ## 1. Intoduction
 
 ## 2. Examples
@@ -436,9 +438,11 @@ PATTERN = np.array([
 1. Noise give very large displacements. Values are removed in vector_tools.py -> displacements() but results are still not ideal
 2. Write function is clucky and needs to be streamlined
 3. Add support for non-stacked JPIV images (or remove feature)
-4. Streamline slicing data (add options like Cascade / Pair / etc.)
-5. Implement multi-pass
-6. Add blur/smoothing when reading images
+4. Implement multi-pass
+5. Add blur/smoothing when reading images
+6. Reduce memory usage
+7. Add recent changes to README
+8. Remove slicing in compute / draw / write
 
 ## Target Style
 https://google.github.io/styleguide/pyguide.html
