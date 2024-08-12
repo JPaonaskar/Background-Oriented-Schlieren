@@ -24,15 +24,19 @@ DISP_Y = 'y'
 
 # datasets
 DATA_RAW = 'raw'
+DATA_SPLIT = 'split'
 DATA_COMPUTED = 'computed'
 DATA_DRAWN = 'drawn'
 
 # file extentions
 EXTS_IMAGE = ['.tif', '.jpg', '.png']
-EXTS_VIDEO = ['.avi']
+EXTS_VIDEO = ['.avi', '.MOV', '.mp4']
+EXTS_AVI = '.avi'
+EXTS_NUMPY = '.npy'
 EXTS_JPIV = '.jvc'
 
 # keys
+KEY_EXIT = -1
 KEY_BACKSPACE = 8
 KEY_TAB = 9
 KEY_ENTER = 13
@@ -49,6 +53,11 @@ COLOR_RED = (0, 0, 255)
 # interplation
 INTER_NEAREST = cv2.INTER_NEAREST
 INTER_CUBIC = cv2.INTER_CUBIC
+
+# pairing methods
+PAIR_CASCADE = 'cascade'
+PAIR_PAIRS = 'pairs'
+PAIR_CONSECUTIVE = 'consecutive'
 
 
 def _spiral_coords(w:int, h:int) -> np.ndarray:
@@ -117,16 +126,18 @@ class BOS(object):
     '''
     def __init__(self) -> None:
         self._raw = None
+        self._referances = None
+        self._images = None
         self._computed = None
         self._drawn = None
 
-    def read(self, path:str, append:bool=False) -> None:
+    def read(self, path:str, computed:bool=False) -> None:
         '''
         Read image, directory of images, or video into memory
 
         Args:
             path (str) : path to file (default=None)
-            append (bool) : add image to current data. only works for images (default=False)
+            computed (bool) : images are computed results (default=False)
 
         Returns:
             None
@@ -199,6 +210,11 @@ class BOS(object):
 
                 # feedback
                 print(f'Read {len(data)} frames')
+
+            # if path is numpy
+            elif ext == EXTS_NUMPY:
+                with open(path, 'rb') as f:
+                    data = np.load(f)
             
             # not a readable file type
             else:
@@ -208,17 +224,9 @@ class BOS(object):
         else:
             raise ValueError(f'path does not exist: {path}')
 
-        # append data
-        if (append) and (type(self._raw) == np.ndarray):
-            # match shape
-            if self._raw[0].shape != data[0].shape:
-                # no match
-                raise ValueError(f'Expected all image to have the same shapes but got shapes {self._raw[0].shape} and {data[0].shape}')
-
-            # append
-            self._raw = np.hstack([self._raw, np.array(data, dtype=np.uint8)])
-
         # write data
+        if computed:
+            self._computed = np.array(data)
         else:
             self._raw = np.array(data, dtype=np.uint8)
 
@@ -360,6 +368,50 @@ class BOS(object):
         # save image
         self._raw = images
 
+    def split(self, start:int=0, stop:int=None, step:int=1, method:str=PAIR_CASCADE) -> None:
+        '''
+        Split data into image pairs
+
+        Args:
+            start (int) : starting frame (default=0)
+            stop (int) : stopping frame (default=None)
+            step (int) : step between frames (default=1)
+            method (str) : pairing method (default=PAIR_CASCADE)
+
+        Returns
+            None
+        '''
+        # slice images
+        images = self._raw[start:stop:step]
+
+        # make cascade pairs
+        if method == PAIR_CASCADE:
+            # store images
+            self._images = images[1:]
+
+            # use first image a referance
+            self._referances = images[0]
+            self._referances = np.tile(self._referances, (len(self._images), 1, 1, 1))
+
+        # make consecutive pairs
+        elif method == PAIR_CONSECUTIVE:
+            # use prior image a first
+            self._referances = images[0:-1]
+
+            # use next image a image
+            self._images = images[1:]
+
+        # make pairs
+        elif method == PAIR_PAIRS:
+            # use first image a referance
+            self._referances = images[0::2]
+
+            # use second image as image
+            self._images = images[1::2]
+
+        else:
+            raise ValueError(f'{method} is not a valid pairing method')
+
     def _setup_compute(self, win_size:int, search_size:int, overlap:int, space:int, start:int, stop:int, step:int, pad:bool) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, int, int]:
         '''
         Setup data and other values for computing
@@ -375,55 +427,37 @@ class BOS(object):
             pad (bool) : pad edges
 
         Returns:
-            raw_data (np.ndarray) : raw data values
-            kernals (np.ndarray) : kernals
+            img_data (np.ndarray) : compute images
+            ref_data (np.ndarray) : referance images
             win_x (np.ndarray) : x axis
             win_y (np.ndarray) : y axis
             n (int) : number of data points
             p (int) : padding size
         '''
         print('Setting Up Compute')
-        # setup slice
-        if not stop:
-            stop = len(self._raw)
-        if space and stop - space > start:
-            stop = stop - space
-
-        # slice
-        raw_data = self._raw[start:stop:step]
+        # unpack
+        ref_data = self._referances.copy()
+        img_data = self._images.copy()
 
         # unpack shape values
-        n, h, w, d = raw_data.shape
+        n, h, w, d = ref_data.shape
 
         print('Converting to Grayscale')
 
         # convert BGR to greyscale if needed
         if d == 3:
-            raw_data = vectorized_tools.grayscale(raw_data)
-
-        # slice kernals
-        if space:
-            kernals = raw_data
-            raw_data = self._raw[start+space:stop+space:step]
-
-        # tile kernal
-        else:
-            kernals = np.expand_dims(raw_data[0], axis=0)
-            kernals = np.tile(kernals, (n, 1, 1))
+            ref_data = vectorized_tools.grayscale(ref_data)
+            img_data = vectorized_tools.grayscale(img_data)
 
         print('Padding')
-
-        # time offset data
-        raw_data = raw_data[1:]
-        kernals = kernals[:len(kernals)-1]
 
         # pad raw data
         p = (search_size - win_size) >> 1
 
-        empty = np.zeros((n - 1, h + 2 * p, w + 2 * p), dtype=np.uint8)
-        empty[:, p:h+p, p:w+p] = raw_data
+        empty = np.zeros((n, h + 2 * p, w + 2 * p), dtype=np.uint8)
+        empty[:, p:h+p, p:w+p] = img_data
 
-        raw_data = empty
+        img_data = empty
         del empty
 
         print('Dividing into Windows')
@@ -455,7 +489,7 @@ class BOS(object):
             win_y += p
 
         # return key values
-        return raw_data, kernals, win_x, win_y, n, p
+        return img_data, ref_data, win_x, win_y, n, p
 
     def compute(self, win_size:int=32, search_size:int=64, overlap:int=0, space:int=None, start:int=0, stop:int=None, step:int=1, pad:bool=False) -> None:
         '''
@@ -483,7 +517,7 @@ class BOS(object):
         win_coords = np.swapaxes(win_coords, 0, 1)
 
         # pre-allocate data (depth is u, v, length)
-        data = np.zeros((n-1, len(win_y), len(win_x), 3))
+        data = np.zeros((n, len(win_y), len(win_x), 3))
 
         # task for threading
         def process(coord:np.ndarray) -> tuple[int, int, np.ndarray, np.ndarray, np.ndarray]:
@@ -577,9 +611,15 @@ class BOS(object):
         if not stop:
             stop = len(self._computed) + 1
 
-        # slice data
-        drawn = self._raw[start:stop:step].copy()
+        # unpack data
         data = self._computed.copy()
+
+        print(data.max(), data.min())
+
+        if type(self._images) == np.ndarray:
+            drawn = self._images.copy()
+        else:
+            drawn = np.zeros_like(data, dtype=np.uint8)
 
         # time offset data
         drawn = drawn[1:]
@@ -640,42 +680,75 @@ class BOS(object):
         # store drawn data
         self._drawn = drawn
 
-    def _get_data(self, dataname:str=DATA_DRAWN) -> np.ndarray:
+    def _get_data(self, dataname:str=DATA_DRAWN, normalize:bool=True) -> tuple[np.ndarray, np.ndarray]:
         '''
         Get humanized data
 
         Args:
             dataname (str) : data to display (default=DATA_DRAWN)
+            normalize (bool) : normalize data to 0-255 (default=True)
 
         Returns:
-            None
+            data (np.ndarray) : unpacked data
+            indexes (np.ndarray) : pair indexes
         '''
         # get images
         data = None
+        indexes = None
         if dataname == DATA_RAW:
             # get raw data
-            data = self._raw
+            data = self._raw.copy()
+
+            # create indexes
+            indexes = np.arange(len(data), dtype=np.uint16)
+
+        elif dataname == DATA_SPLIT:
+            n_ref, h, w, d = self._referances.shape
+            n_img = self._images.shape[0]
+
+            # create empty array
+            data = np.zeros((n_ref + n_img, h, w, d), dtype=np.uint8)
+
+            # assign data
+            data[0::2] = self._referances.copy()
+            data[1::2] = self._images.copy()
+
+            # create indexes
+            indexes = np.zeros((n_ref + n_img), dtype=np.uint16)
+
+            # assign indexes
+            indexes[0::2] = np.arange(n_ref)
+            indexes[1::2] = np.arange(n_img)
+
         elif dataname == DATA_COMPUTED:
             # get compuited data
-            data = self._computed
-            
+            data = self._computed.copy()
+
+            # create indexes
+            indexes = np.arange(len(data), dtype=np.uint16)
+
+        elif dataname == DATA_DRAWN:
+            # get drawn data
+            data = self._drawn.copy()
+
+            # create indexes
+            indexes = np.arange(len(data), dtype=np.uint16)
+        else:
+            ValueError(f'{dataname} in not a valid dataset')
+
+        # normalize
+        if normalize:
             # shift unsigned 8-bit
             data = data.astype(np.float32)
             data = data - np.nanmin(data) # 0.0 - max
             data = data * 255.0 / np.nanmax(data) # 0.0 - 255.0
             data = data.astype(np.uint8) # 8bit
 
-            # replace nan with zeros
-            data = np.nan_to_num(data, nan=127)
-
-        elif dataname == DATA_DRAWN:
-            # get drawn data
-            data = self._drawn
-        else:
-            ValueError(f'{dataname} in not a valid dataset')
+            # replace nan with mean
+            data = np.nan_to_num(data, nan=np.mean(data))
 
         # output
-        return data
+        return data, indexes
 
     def display(self, dataname:str=DATA_DRAWN, font:int=cv2.FONT_HERSHEY_SIMPLEX, font_scale:float=0.5, font_color:tuple[int, int, int]=COLOR_WHITE, font_thickness:int=1, font_pad:int=8) -> None:
         '''
@@ -693,7 +766,7 @@ class BOS(object):
             None
         '''
         # get data
-        imgs = self._get_data(dataname=dataname)
+        imgs, inds = self._get_data(dataname=dataname)
 
         # placeholders
         ind = 0
@@ -712,7 +785,7 @@ class BOS(object):
             # draw index
             if font != None:
                 # get text size
-                text = f'{ind+1} / {len(imgs)}'
+                text = f'{inds[ind]+1} / {inds.max()+1}'
                 (w, h), _ = cv2.getTextSize(text, font, font_scale, font_thickness)
 
                 # put text
@@ -726,7 +799,7 @@ class BOS(object):
             k = cv2.waitKey(0)
 
             # quit
-            if (k == ord('q')) or (k == KEY_ESCAPE):
+            if (k == ord('q')) or (k == KEY_ESCAPE) or (k == KEY_EXIT):
                 break
 
             # large stepping
@@ -754,7 +827,11 @@ class BOS(object):
                     ind += 1
 
             else:
-                print('pressed:', k, chr(k).strip())
+                print('pressed:', k, end=' ')
+                if k >= 0:
+                    print(chr(k).strip())
+                else:
+                    print()
 
         # close window
         cv2.destroyWindow(dataname)
@@ -921,7 +998,7 @@ class BOS(object):
             k = cv2.waitKey(1)
 
             # quit
-            if (k == ord('q')) or (k == KEY_ESCAPE):
+            if (k == ord('q')) or (k == KEY_ESCAPE):# or (k == KEY_EXIT):
                 break
 
             # large stepping
@@ -994,10 +1071,7 @@ class BOS(object):
             None
         '''
         # get data
-        imgs = self._get_data(dataname=dataname)
-
-        # slice
-        imgs = imgs[start:stop:step]
+        imgs, _ = self._get_data(dataname=dataname, normalize=False)
 
         # stack raw images image
         if (dataname == DATA_RAW and stacked):
@@ -1035,7 +1109,7 @@ class BOS(object):
         path = os.path.abspath(path)
 
         # check if path is for a video
-        if '.avi' == os.path.splitext(path)[1]:
+        if os.path.splitext(path)[1] == EXTS_AVI:
             # build directory if needed
             direct = os.path.dirname(path)
             if not os.path.exists(direct):
@@ -1055,6 +1129,13 @@ class BOS(object):
 
             # release writer
             video_out.release()
+
+        # check if path is for numpy
+        elif os.path.splitext(path)[1] == EXTS_NUMPY:
+            print(imgs.dtype, imgs.max(), imgs.min)
+            # write as numpy
+            with open(path, 'wb') as f:
+                np.save(f, imgs)
 
         # check if path is for an image
         elif os.path.splitext(path)[1] in EXTS_IMAGE:
