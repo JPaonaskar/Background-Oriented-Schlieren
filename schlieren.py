@@ -368,6 +368,32 @@ class BOS(object):
         # save image
         self._raw = images
 
+    def gaussianBlur(self, ksize:tuple=(3,3), sigmaX:float=0, sigmaY:float=0):
+        '''
+        Apply gaussian blur to raw images
+
+        Args:
+            ksize (tuple) : kernal shape (default=(3, 3))
+            sigmaX (float) : gaussian kernal standard deviation in the X (default=0)
+            sigmaY (float) : gaussian kernal standard deviation in the Y (default=0)
+        '''
+        # blur images
+        print('Gaussian Blur')
+        for i in tqdm(range(len(self._raw))):
+            self._raw[i] = cv2.GaussianBlur(self._raw[i], ksize=ksize, sigmaX=sigmaX, sigmaY=sigmaY)
+
+    def medianBlur(self, ksize:int=3):
+        '''
+        Apply gaussian blur to raw images
+
+        Args:
+            ksize (tuple) : kernal size (default=3)
+        '''
+        # blur images
+        print('Median Blur')
+        for i in tqdm(range(len(self._raw))):
+            self._raw[i] = cv2.medianBlur(self._raw[i], ksize=ksize)
+
     def split(self, start:int=0, stop:int=None, step:int=1, method:str=PAIR_CASCADE) -> None:
         '''
         Split data into image pairs
@@ -381,6 +407,10 @@ class BOS(object):
         Returns
             None
         '''
+        # setup slice
+        if not stop:
+            stop = len(self._raw) + 1
+
         # slice images
         images = self._raw[start:stop:step]
 
@@ -412,7 +442,7 @@ class BOS(object):
         else:
             raise ValueError(f'{method} is not a valid pairing method')
 
-    def _setup_compute(self, win_size:int, search_size:int, overlap:int, space:int, start:int, stop:int, step:int, pad:bool) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, int, int]:
+    def _setup_compute(self, win_size:int, search_size:int, overlap:int, pad:bool) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, int, int]:
         '''
         Setup data and other values for computing
 
@@ -420,10 +450,6 @@ class BOS(object):
             win_size (int) : search windows size
             search_size (int) : search size
             overlap (int) : overlap between windows
-            space (int) : space between referance frame. None implies use start frame
-            start (int) : starting frame
-            stop (int) : ending frame (exclusive)
-            step (int) : step between frames
             pad (bool) : pad edges
 
         Returns:
@@ -491,7 +517,7 @@ class BOS(object):
         # return key values
         return img_data, ref_data, win_x, win_y, n, p
 
-    def compute(self, win_size:int=32, search_size:int=64, overlap:int=0, space:int=None, start:int=0, stop:int=None, step:int=1, pad:bool=False) -> None:
+    def compute(self, win_size:int=32, search_size:int=64, overlap:int=0, pad:bool=False) -> None:
         '''
         Compute schlieren data
 
@@ -499,17 +525,13 @@ class BOS(object):
             win_size (int) : search windows size (default=32)
             search_size (int) : search size (default=64)
             overlap (int) : overlap between windows (default=0)
-            space (int) : space between referance frame. None implies use start frame (default=None)
-            start (int) : starting frame (default=0)
-            stop (int) : ending frame (exclusive) (default=None)
-            step (int) : step between frames (default=1)
             pad (bool) : pad edges (default=False)
 
         Returns:
             None
         '''
         # get compute values
-        raw_data, kernals, win_x, win_y, n, p = self._setup_compute(win_size, search_size, overlap, space, start, stop, step, pad)
+        raw_data, kernals, win_x, win_y, n, p = self._setup_compute(win_size, search_size, overlap, pad)
 
         # create list of coordinate pairs
         win_coords = np.meshgrid(np.arange(len(win_x)), np.arange(len(win_y)))
@@ -569,7 +591,7 @@ class BOS(object):
         # store computed data
         self._computed = data
 
-    def compute_multi(self, win_size:int=32, search_size:int=64, particle_size:int=2, overlap:int=0, start:int=0, stop:int=None, step:int=1, pad:bool=False) -> None:
+    def compute_multi(self, win_size:int=32, search_size:int=64, particle_size:int=2, overlap:int=0, pad:bool=False) -> None:
         '''
         Mulipass compute
 
@@ -578,10 +600,6 @@ class BOS(object):
             search_size (int) : search size (default=64)
             particle_size (int) : particle size (default=2)
             overlap (int) : overlap between windows (default=0)
-            space (int) : space between referance frame. None implies use start frame (default=None)
-            start (int) : starting frame (default=0)
-            stop (int) : ending frame (exclusive) (default=None)
-            step (int) : step between frames (default=1)
             pad (bool) : pad edges (default=False)
 
         Returns:
@@ -589,7 +607,7 @@ class BOS(object):
         '''
         pass
 
-    def draw(self, method:str=DISP_MAG, thresh:float=5.0, alpha:float=0.6, colormap:int=cv2.COLORMAP_JET, interplolation:int=INTER_NEAREST, masked:float=None, start:int=0, stop:int=None, step:int=1) -> None:
+    def draw(self, method:str=DISP_MAG, thresh:float=5.0, alpha:float=0.6, colormap:int=cv2.COLORMAP_JET, interplolation:int=INTER_NEAREST, masked:float=None) -> None:
         '''
         Draw computed data
 
@@ -600,21 +618,12 @@ class BOS(object):
             colormap (int) : colormap (default=cv2.COLORMAP_JET)
             interplolation (int) : interplolation method (default=INTER_NEAREST)
             masked (float) : treat low displacements as a mask (default=None)
-            start (int) : starting frame (default=0)
-            stop (int) : ending frame (exclusive) (default=None)
-            step (int) : step between frames (default=1)
 
         Returns:
             None
         '''
-        # setup slice
-        if not stop:
-            stop = len(self._computed) + 1
-
         # unpack data
-        data = self._computed.copy()
-
-        print(data.max(), data.min())
+        data = self._computed.copy().astype(np.float16)
 
         if type(self._images) == np.ndarray:
             drawn = self._images.copy()
@@ -750,7 +759,7 @@ class BOS(object):
         # output
         return data, indexes
 
-    def display(self, dataname:str=DATA_DRAWN, font:int=cv2.FONT_HERSHEY_SIMPLEX, font_scale:float=0.5, font_color:tuple[int, int, int]=COLOR_WHITE, font_thickness:int=1, font_pad:int=8) -> None:
+    def display(self, dataname:str=DATA_DRAWN, font:int=cv2.FONT_HERSHEY_SIMPLEX, font_scale:float=0.5, font_color:tuple[int, int, int]=COLOR_WHITE, font_thickness:int=1, font_pad:int=8, normalize:bool=True) -> None:
         '''
         Display drawn data
 
@@ -761,12 +770,13 @@ class BOS(object):
             font_color (tuple[int, int, int]) : overlay font color (default=COLOR_WHITE)
             font_thickness (int) : overlay font thickness (default=1)
             font_pad (int) : overlay font padding from edges (default=8)
+            normalize (bool) : normalize image (default=True)
 
         Returns:
             None
         '''
         # get data
-        imgs, inds = self._get_data(dataname=dataname)
+        imgs, inds = self._get_data(dataname=dataname, normalize=normalize)
 
         # placeholders
         ind = 0
@@ -896,7 +906,7 @@ class BOS(object):
         # output
         return cell
 
-    def live(self, win_size:int=32, search_size:int=64, overlap:int=0, start:int=0, stop:int=None, step:int=1, pad:bool=False, save_win_size:int=32, save_search_size:int=64, save_overlap:int=0, method:str=DISP_MAG, thresh:float=5.0, alpha:float=0.6, colormap:int=cv2.COLORMAP_JET, interplolation=INTER_NEAREST, masked:float=None, font:int=cv2.FONT_HERSHEY_SIMPLEX, font_scale:float=0.5, font_color:tuple[int, int, int]=COLOR_WHITE, font_thickness:int=1, font_pad:int=8) -> None:
+    def live(self, win_size:int=32, search_size:int=64, overlap:int=0, pad:bool=False, save_win_size:int=32, save_search_size:int=64, save_overlap:int=0, method:str=DISP_MAG, thresh:float=5.0, alpha:float=0.6, colormap:int=cv2.COLORMAP_JET, interplolation=INTER_NEAREST, masked:float=None, font:int=cv2.FONT_HERSHEY_SIMPLEX, font_scale:float=0.5, font_color:tuple[int, int, int]=COLOR_WHITE, font_thickness:int=1, font_pad:int=8) -> None:
         '''
         Live computing and rendering
 
@@ -904,9 +914,6 @@ class BOS(object):
             win_size (int) : search windows size (default=32)
             search_size (int) : search size (default=64)
             overlap (int) : overlap between windows (default=0)
-            start (int) : starting frame (default=0)
-            stop (int) : ending frame (exclusive) (default=None)
-            step (int) : step between frames (default=1)
             pad (bool) : pad edges (default=False)
 
             save_win_size (int) : search windows size for saving (default=32)
@@ -933,7 +940,7 @@ class BOS(object):
         _, h, w, _ = self._raw.shape
 
         # setup computing values
-        raw_data, kernals, win_x, win_y, n, p = self._setup_compute(win_size, search_size, overlap, None, start, stop, step, pad)
+        raw_data, kernals, win_x, win_y, n, p = self._setup_compute(win_size, search_size, overlap, None, pad)
 
         # create spiral
         coords = _spiral_coords(len(win_x), len(win_y))
@@ -1028,13 +1035,11 @@ class BOS(object):
             # save
             elif k == ord('s'):
                 # get slices
-                i0 = start
-                i1 = start + ind * step + 1
-                di = ind * step
+                raise NotImplementedError("Saving single frames is not implemented yet (need single slicing)")
 
                 # compute and draw frame
-                self.compute(win_size=save_win_size, search_size=save_search_size, overlap=save_overlap, start=i0, stop=i1, step=di, pad=pad)
-                self.draw(method=method, thresh=thresh, alpha=alpha, colormap=colormap, interplolation=interplolation, masked=masked, start=i0, stop=i1, step=di)
+                self.compute(win_size=save_win_size, search_size=save_search_size, overlap=save_overlap, pad=pad)
+                self.draw(method=method, thresh=thresh, alpha=alpha, colormap=colormap, interplolation=interplolation, masked=masked)
                 
                 # save frame
                 self.write('results')
@@ -1043,17 +1048,15 @@ class BOS(object):
             # save stacked image for jpiv
             elif k == ord('j'):
                 # get slices
-                i0 = start
-                i1 = start + ind * step + 1
-                di = ind * step
+                raise NotImplementedError("Saving JPIV frames is not implemented yet (need single slicing)")
                 
                 # save frame
-                self.write('jpiv', dataname=DATA_RAW, start=i0, stop=i1, step=di, extention='.png', stacked=True)
+                self.write('jpiv', dataname=DATA_RAW, extention='.png', stacked=True)
 
         # close window
         cv2.destroyWindow('Live')
 
-    def write(self, path:str=None, dataname:str=DATA_DRAWN, fps:float=30.0, start:int=0, stop:int=None, step:int=1, extention:str='.jpg', stacked:bool=False) -> None:
+    def write(self, path:str=None, dataname:str=DATA_DRAWN, fps:float=30.0, extention:str='.jpg', stacked:bool=False) -> None:
         '''
         Write image or video
 
@@ -1061,9 +1064,6 @@ class BOS(object):
             path (str) : path to save location (direcory or .avi file) (default=None)
             dataname (str) : data to write (default=DATA_DRAWN)
             fps (float) : video frames per second (default=30.0)
-            start (int) : starting frame (default=0)
-            stop (int) : ending frame (exclusive) (default=None)
-            step (int) : step between frames (default=1)
             extention (str) : image file extention (default='.jpg)
             stacked (bool) : stack referance frame on top of frame (default=False)
 
@@ -1132,7 +1132,7 @@ class BOS(object):
 
         # check if path is for numpy
         elif os.path.splitext(path)[1] == EXTS_NUMPY:
-            print(imgs.dtype, imgs.max(), imgs.min)
+            print("Writting Numpy File")
             # write as numpy
             with open(path, 'wb') as f:
                 np.save(f, imgs)
