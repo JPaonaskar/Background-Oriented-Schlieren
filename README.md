@@ -144,13 +144,32 @@ def read(
 ```
 
 ```python
+def gaussianBlur(
+    ksize : tuple = (3,3),
+    sigmaX : float = 0,
+    sigmaY : float = 0
+) -> None
+```
+
+```python
+def medianBlur(
+    ksize : int = 3
+) -> None
+```
+
+```python
+def split(
+    start : int = 0,
+    stop : int = None,
+    step : int = 1,
+    method : str = PAIR_CASCADE
+) -> None
+```
+
+```python
 def _setup_compute(
     win_size : int,
     search_size : int,
-    space : int,
-    start : int,
-    stop : int,
-    step : int,
     pad : bool
 ) -> tuple[
     raw_data : np.ndarray,
@@ -167,10 +186,6 @@ def compute(
     win_size : int = 32,
     search_size : int = 64,
     overlap : int = 0,
-    space : int = None,
-    start : int = 0,
-    stop : int = None,
-    step : int = 1,
     pad : bool = False
 ) -> None
 ```
@@ -181,9 +196,6 @@ def compute_multi(
     search_size : int = 64,
     particle_size : int = 2,
     overlap : int = 0,
-    start : int = 0,
-    stop : int = None,
-    step : int = 1,
     pad : bool = False
 ) -> None
 ```
@@ -195,10 +207,7 @@ def draw(
     alpha : float = 0.6,
     colormap : int = cv2.COLORMAP_JET,
     interplolation : int = INTER_NEAREST,
-    masked : bool = False,
-    start : int = 0,
-    stop : int = None,
-    step : int = 1
+    masked : bool = False
 ) -> None
 ```
 
@@ -236,9 +245,6 @@ def live(
     win_size : int = 32,
     search_size : int = 64,
     overlap : int = 0,
-    start : int = 0,
-    stop : int = None,
-    step : int = 1,
     pad : bool = False,
 
     save_win_size : int = 32
@@ -265,9 +271,6 @@ def write(
     path : str = None,
     dataname : str = DATA_DRAWN,
     fps : float = 30.0,
-    start : int = 0,
-    stop : int = None,
-    step : int = 1,
     extention : str = '.jpg',
     stacked : bool = False
 ) -> None
@@ -439,10 +442,10 @@ PATTERN = np.array([
 2. Write function is clucky and needs to be streamlined
 3. Add support for non-stacked JPIV images (or remove feature)
 4. Implement multi-pass
-5. Add blur/smoothing when reading images
-6. Reduce memory usage
-7. Add recent changes to README
-8. Remove slicing in compute / draw / write
+5. Reduce memory usage
+6. Add recent changes to README
+7. Remove slicing in compute / draw / write
+8. Resolve noise in images
 
 ## Target Style
 https://google.github.io/styleguide/pyguide.html

@@ -368,7 +368,7 @@ class BOS(object):
         # save image
         self._raw = images
 
-    def gaussianBlur(self, ksize:tuple=(3,3), sigmaX:float=0, sigmaY:float=0):
+    def gaussianBlur(self, ksize:tuple=(3,3), sigmaX:float=0, sigmaY:float=0) -> None:
         '''
         Apply gaussian blur to raw images
 
@@ -376,18 +376,24 @@ class BOS(object):
             ksize (tuple) : kernal shape (default=(3, 3))
             sigmaX (float) : gaussian kernal standard deviation in the X (default=0)
             sigmaY (float) : gaussian kernal standard deviation in the Y (default=0)
+
+        Returns:
+            None
         '''
         # blur images
         print('Gaussian Blur')
         for i in tqdm(range(len(self._raw))):
             self._raw[i] = cv2.GaussianBlur(self._raw[i], ksize=ksize, sigmaX=sigmaX, sigmaY=sigmaY)
 
-    def medianBlur(self, ksize:int=3):
+    def medianBlur(self, ksize:int=3) -> None:
         '''
         Apply gaussian blur to raw images
 
         Args:
             ksize (tuple) : kernal size (default=3)
+
+        Returns:
+            None
         '''
         # blur images
         print('Median Blur')
@@ -404,7 +410,7 @@ class BOS(object):
             step (int) : step between frames (default=1)
             method (str) : pairing method (default=PAIR_CASCADE)
 
-        Returns
+        Returns:
             None
         '''
         # setup slice
