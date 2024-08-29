@@ -1077,7 +1077,10 @@ class BOS(object):
             None
         '''
         # get data
-        imgs, _ = self._get_data(dataname=dataname, normalize=False)
+        if dataname == DATA_COMPUTED:
+            imgs, _ = self._get_data(dataname=dataname, normalize=True)
+        else:
+            imgs, _ = self._get_data(dataname=dataname, normalize=False)
 
         # stack raw images image
         if (dataname == DATA_RAW and stacked):
