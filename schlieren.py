@@ -59,6 +59,31 @@ PAIR_CASCADE = 'cascade'
 PAIR_PAIRS = 'pairs'
 PAIR_CONSECUTIVE = 'consecutive'
 
+# color maps
+COLORMAP_COMPUTED = -1
+COLORMAP_AUTUMN = 0
+COLORMAP_BONE = 1
+COLORMAP_JET = 2
+COLORMAP_WINTER = 3
+COLORMAP_RAINBOW = 4
+COLORMAP_OCEAN = 5
+COLORMAP_SUMMER = 6
+COLORMAP_SPRING = 7
+COLORMAP_COOL = 8
+COLORMAP_HSV = 9
+COLORMAP_PINK = 10
+COLORMAP_HOT = 11
+COLORMAP_PARULA = 12
+COLORMAP_MAGMA = 13
+COLORMAP_INFERNO = 14
+COLORMAP_PLASMA = 15
+COLORMAP_VIRIDIS = 16
+COLORMAP_CIVIDIS = 17
+COLORMAP_TWILIGHT = 18
+COLORMAP_TWILIGHT_SHIFTED = 19
+COLORMAP_TURBO = 20
+COLORMAP_DEEPGREEN = 21
+
 
 def _spiral_coords(w:int, h:int) -> np.ndarray:
     '''
@@ -613,7 +638,7 @@ class BOS(object):
         '''
         pass
 
-    def draw(self, method:str=DISP_MAG, thresh:float=5.0, alpha:float=0.6, colormap:int=cv2.COLORMAP_JET, interplolation:int=INTER_NEAREST, masked:float=None) -> None:
+    def draw(self, method:str=DISP_MAG, thresh:float=5.0, alpha:float=0.6, colormap:int=COLORMAP_JET, interplolation:int=INTER_NEAREST, masked:float=None) -> None:
         '''
         Draw computed data
 
@@ -621,7 +646,7 @@ class BOS(object):
             method (str) : drawing method (default=DISP_MAG)
             thresh (float) : value maximum (defult=5.0)
             alpha (float) : blending between raw and computed (defult=0.6)
-            colormap (int) : colormap (default=cv2.COLORMAP_JET)
+            colormap (int) : colormap (default=COLORMAP_JET)
             interplolation (int) : interplolation method (default=INTER_NEAREST)
             masked (float) : treat low displacements as a mask (default=None)
 
@@ -647,27 +672,45 @@ class BOS(object):
             drawn = np.stack([drawn, drawn, drawn], axis=3)
 
         # get computed data
-        if method == DISP_X:
-            data = data[:, :, :, 0]
-        elif method == DISP_Y:
-            data = data[:, :, :, 1]
-        elif method == DISP_MAG:
-            data = data[:, :, :, 2]
-        else:
-            raise ValueError(f'Method {method} is not a valid method')
+        if colormap != COLORMAP_COMPUTED:
+            if method == DISP_X:
+                data = data[:, :, :, 0]
+            elif method == DISP_Y:
+                data = data[:, :, :, 1]
+            elif method == DISP_MAG:
+                data = data[:, :, :, 2]
+            else:
+                raise ValueError(f'Method {method} is not a valid method')
         
         # apply threshold
-        mask = data > thresh
+        mask = np.abs(data) > thresh
 
         # remove zeros
         if masked:
-            mask = np.bitwise_or(mask, data <= masked)
+            mask = np.bitwise_or(mask, np.abs(data) <= masked)
 
         # mask
-        data[mask] = 0.0  
+        data[mask] = 0.0
 
-        # normalize data
-        data = (data * 255 / thresh).astype(np.uint8)
+        # collapse mask
+        if len(mask.shape) == 4 and mask.shape[3] > 1:
+            copy = mask.copy().astype(np.int8)
+
+            # join layers
+            mask = copy[:, :, :, 0]
+            for i in range(1, copy.shape[3]):
+                mask = cv2.bitwise_or(mask, copy[:, :, :, 1])
+
+            # delete copy
+            del copy
+
+        # max for magnitide values
+        if (method == DISP_MAG) and (colormap != COLORMAP_COMPUTED):
+            data = (np.abs(data) * 255 / thresh).astype(np.uint8)
+        
+        # min max for negitive values
+        else:
+            data = (data * 127.5 / thresh + 127.5).astype(np.uint8)
 
         # draw images
         print('Drawing Frames')
@@ -676,7 +719,8 @@ class BOS(object):
             raw = drawn[i]
 
             # apply colormap
-            point = cv2.applyColorMap(point, colormap)
+            if colormap != COLORMAP_COMPUTED:
+                point = cv2.applyColorMap(point, colormap)
 
             # make blending image
             blend = mask[i].astype(np.uint8) * 255
@@ -852,7 +896,7 @@ class BOS(object):
         # close window
         cv2.destroyWindow(dataname)
     
-    def _live_render_cell(self, win:np.ndarray, search:np.ndarray, method:str=DISP_MAG, thresh:float=5.0, alpha:float=0.6, colormap:int=cv2.COLORMAP_JET, masked:bool=False) -> np.ndarray:
+    def _live_render_cell(self, win:np.ndarray, search:np.ndarray, method:str=DISP_MAG, thresh:float=5.0, alpha:float=0.6, colormap:int=COLORMAP_JET, masked:bool=False) -> np.ndarray:
         '''
         Compute and draw a cell
 
@@ -862,7 +906,7 @@ class BOS(object):
             method (str) : drawing method (default=DISP_MAG)
             thresh (float) : value maximum (defult=5.0)
             alpha (float) : blending between raw and computed (defult=0.6)
-            colormap (int) : colormap (default=cv2.COLORMAP_JET)
+            colormap (int) : colormap (default=COLORMAP_JET)
             masked (float) : treat low displacements as a mask (default=None)
 
         Returns:
@@ -912,7 +956,7 @@ class BOS(object):
         # output
         return cell
 
-    def live(self, win_size:int=32, search_size:int=64, overlap:int=0, pad:bool=False, save_win_size:int=32, save_search_size:int=64, save_overlap:int=0, method:str=DISP_MAG, thresh:float=5.0, alpha:float=0.6, colormap:int=cv2.COLORMAP_JET, interplolation=INTER_NEAREST, masked:float=None, font:int=cv2.FONT_HERSHEY_SIMPLEX, font_scale:float=0.5, font_color:tuple[int, int, int]=COLOR_WHITE, font_thickness:int=1, font_pad:int=8) -> None:
+    def live(self, win_size:int=32, search_size:int=64, overlap:int=0, pad:bool=False, save_win_size:int=32, save_search_size:int=64, save_overlap:int=0, method:str=DISP_MAG, thresh:float=5.0, alpha:float=0.6, colormap:int=COLORMAP_JET, interplolation=INTER_NEAREST, masked:float=None, font:int=cv2.FONT_HERSHEY_SIMPLEX, font_scale:float=0.5, font_color:tuple[int, int, int]=COLOR_WHITE, font_thickness:int=1, font_pad:int=8) -> None:
         '''
         Live computing and rendering
 
@@ -929,7 +973,7 @@ class BOS(object):
             method (str) : drawing method (default=DISP_MAG)
             thresh (float) : value maximum (defult=5.0)
             alpha (float) : blending between raw and computed (defult=0.6)
-            colormap (int) : colormap (default=cv2.COLORMAP_JET)
+            colormap (int) : colormap (default=COLORMAP_JET)
             interplolation (int) : interplolation method (default=INTER_NEAREST)
             masked (float) : treat low displacements as a mask (default=None)
 

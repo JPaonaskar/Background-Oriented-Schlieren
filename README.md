@@ -444,8 +444,7 @@ PATTERN = np.array([
 4. Implement multi-pass
 5. Reduce memory usage
 6. Add recent changes to README
-7. Remove slicing in compute / draw / write
-8. Resolve noise in images
+7. BUG: computed file gets modified when saving and drawing (float -> uint8) unsure why and how, need to repeat
 
 ## Target Style
 https://google.github.io/styleguide/pyguide.html
