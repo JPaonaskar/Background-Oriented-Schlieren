@@ -28,7 +28,7 @@ DATA_SPLIT = 'split'
 DATA_COMPUTED = 'computed'
 DATA_DRAWN = 'drawn'
 
-# file extentions
+# file extensions
 EXTS_IMAGE = ['.tif', '.jpg', '.png']
 EXTS_VIDEO = ['.avi', '.MOV', '.mp4']
 EXTS_AVI = '.avi'
@@ -50,7 +50,7 @@ COLOR_BLUE = (255, 0, 0)
 COLOR_GREEN = (0, 255, 0)
 COLOR_RED = (0, 0, 255)
 
-# interplation
+# interpolation
 INTER_NEAREST = cv2.INTER_NEAREST
 INTER_CUBIC = cv2.INTER_CUBIC
 
@@ -108,7 +108,7 @@ def _spiral_coords(w:int, h:int) -> np.ndarray:
     # coordinate output
     coords = [[x, y]]
 
-    # begin sprial (for number of step out from center) (Alternates from WS and WN)
+    # begin spiral (for number of step out from center) (Alternates from WS and WN)
     for i in range(2*dist + 1):
         # loop twice (chains are the same size twice)
         for j in [0, 1]:
@@ -126,7 +126,7 @@ def _spiral_coords(w:int, h:int) -> np.ndarray:
 
                 # check if in bounds
                 if (x >= 0 and x < w and y >= 0 and y < h):
-                    # save coorinate
+                    # save coordinate
                     coords.append([x, y])
 
             # change direction
@@ -151,7 +151,7 @@ class BOS(object):
     '''
     def __init__(self) -> None:
         self._raw = None
-        self._referances = None
+        self._references = None
         self._images = None
         self._computed = None
         self._drawn = None
@@ -224,7 +224,7 @@ class BOS(object):
 
                     # stop and end / bad frame
                     if not ret:
-                        print(f'Cannot recieve frame {len(data)+1}. Ending')
+                        print(f'Cannot receive frame {len(data)+1}. Ending')
                         break
 
                     # save frame
@@ -398,9 +398,9 @@ class BOS(object):
         Apply gaussian blur to raw images
 
         Args:
-            ksize (tuple) : kernal shape (default=(3, 3))
-            sigmaX (float) : gaussian kernal standard deviation in the X (default=0)
-            sigmaY (float) : gaussian kernal standard deviation in the Y (default=0)
+            ksize (tuple) : kernel shape (default=(3, 3))
+            sigmaX (float) : gaussian kernel standard deviation in the X (default=0)
+            sigmaY (float) : gaussian kernel standard deviation in the Y (default=0)
 
         Returns:
             None
@@ -415,7 +415,7 @@ class BOS(object):
         Apply gaussian blur to raw images
 
         Args:
-            ksize (tuple) : kernal size (default=3)
+            ksize (tuple) : kernel size (default=3)
 
         Returns:
             None
@@ -450,22 +450,22 @@ class BOS(object):
             # store images
             self._images = images[1:]
 
-            # use first image a referance
-            self._referances = images[0]
-            self._referances = np.tile(self._referances, (len(self._images), 1, 1, 1))
+            # use first image a reference
+            self._references = images[0]
+            self._references = np.tile(self._references, (len(self._images), 1, 1, 1))
 
         # make consecutive pairs
         elif method == PAIR_CONSECUTIVE:
             # use prior image a first
-            self._referances = images[0:-1]
+            self._references = images[0:-1]
 
             # use next image a image
             self._images = images[1:]
 
         # make pairs
         elif method == PAIR_PAIRS:
-            # use first image a referance
-            self._referances = images[0::2]
+            # use first image a reference
+            self._references = images[0::2]
 
             # use second image as image
             self._images = images[1::2]
@@ -485,7 +485,7 @@ class BOS(object):
 
         Returns:
             img_data (np.ndarray) : compute images
-            ref_data (np.ndarray) : referance images
+            ref_data (np.ndarray) : reference images
             win_x (np.ndarray) : x axis
             win_y (np.ndarray) : y axis
             n (int) : number of data points
@@ -493,7 +493,7 @@ class BOS(object):
         '''
         print('Setting Up Compute')
         # unpack
-        ref_data = self._referances.copy()
+        ref_data = self._references.copy()
         img_data = self._images.copy()
 
         # unpack shape values
@@ -501,7 +501,7 @@ class BOS(object):
 
         print('Converting to Grayscale')
 
-        # convert BGR to greyscale if needed
+        # convert BGR to grayscale if needed
         if d == 3:
             ref_data = vectorized_tools.grayscale(ref_data)
             img_data = vectorized_tools.grayscale(img_data)
@@ -562,7 +562,7 @@ class BOS(object):
             None
         '''
         # get compute values
-        raw_data, kernals, win_x, win_y, n, p = self._setup_compute(win_size, search_size, overlap, pad)
+        raw_data, kernels, win_x, win_y, n, p = self._setup_compute(win_size, search_size, overlap, pad)
 
         # create list of coordinate pairs
         win_coords = np.meshgrid(np.arange(len(win_x)), np.arange(len(win_y)))
@@ -583,12 +583,12 @@ class BOS(object):
             win_col = win_x[col]
 
             # pull window
-            win = kernals[:, win_row:win_row + win_size, win_col:win_col + win_size]
+            win = kernels[:, win_row:win_row + win_size, win_col:win_col + win_size]
 
             # pull search area
             search = raw_data[:, win_row:win_row+win_size + 2 * p, win_col:win_col + win_size + 2 * p]
 
-            # compute correlation and calcualte displacements
+            # compute correlation and calculate displacements
             corr = vectorized_tools.normxcorr2(search, win, mode='full')
             u, v = vectorized_tools.displacement(corr)
 
@@ -602,7 +602,7 @@ class BOS(object):
         with ThreadPoolExecutor() as executor:
             futures = []
 
-            # itterate though sections
+            # iterate though sections
             print('Starting Processes')
             for coord in tqdm(win_coords):
                 # start process
@@ -636,18 +636,18 @@ class BOS(object):
         Returns:
             None
         '''
-        pass
+        raise NotImplementedError('This function is not implemented yet')
 
-    def draw(self, method:str=DISP_MAG, thresh:float=5.0, alpha:float=0.6, colormap:int=COLORMAP_JET, interplolation:int=INTER_NEAREST, masked:float=None) -> None:
+    def draw(self, method:str=DISP_MAG, thresh:float=5.0, alpha:float=0.6, colormap:int=COLORMAP_JET, interpolation:int=INTER_NEAREST, masked:float=None) -> None:
         '''
         Draw computed data
 
         Args:
             method (str) : drawing method (default=DISP_MAG)
-            thresh (float) : value maximum (defult=5.0)
-            alpha (float) : blending between raw and computed (defult=0.6)
+            thresh (float) : value maximum (default=5.0)
+            alpha (float) : blending between raw and computed (default=0.6)
             colormap (int) : colormap (default=COLORMAP_JET)
-            interplolation (int) : interplolation method (default=INTER_NEAREST)
+            interpolation (int) : interpolation method (default=INTER_NEAREST)
             masked (float) : treat low displacements as a mask (default=None)
 
         Returns:
@@ -660,9 +660,10 @@ class BOS(object):
             drawn = self._images.copy()
         else:
             drawn = np.zeros_like(data, dtype=np.uint8)
-
-        # time offset data
-        drawn = drawn[1:]
+            
+        # time offset images
+        if drawn.shape[0] > data.shape[0]:
+            drawn = drawn[1:]
 
         # store shape
         n, h, w, d = drawn.shape
@@ -704,11 +705,11 @@ class BOS(object):
             # delete copy
             del copy
 
-        # max for magnitide values
+        # max for magnitude values
         if (method == DISP_MAG) and (colormap != COLORMAP_COMPUTED):
             data = (np.abs(data) * 255 / thresh).astype(np.uint8)
         
-        # min max for negitive values
+        # min max for negative values
         else:
             data = (data * 127.5 / thresh + 127.5).astype(np.uint8)
 
@@ -727,14 +728,99 @@ class BOS(object):
             blend = np.stack([blend, blend, blend], axis=2)
 
             # resize
-            blend = cv2.resize(blend, (w, h), interpolation=interplolation)
-            point = cv2.resize(point, (w, h), interpolation=interplolation)
+            blend = cv2.resize(blend, (w, h), interpolation=interpolation)
+            point = cv2.resize(point, (w, h), interpolation=interpolation)
 
             # modify to be alpha
             blend = blend / 255.0 * alpha + (1 - alpha)
 
-            # belnd and store
+            # blend and store
             drawn[i] = (raw * blend + point * (1 - blend)).astype(np.uint8)
+
+        # store drawn data
+        self._drawn = drawn
+
+    def quiver(self, thresh:float=5, alpha:float=0.3, colormap:int=COLORMAP_JET, thickness:int=10, interpolation:int=INTER_NEAREST, scale:float=5.0):
+        '''
+        Quiver plot
+
+        Args:
+            thresh (float) : value maximum (default=5.0)
+            alpha (float) : blending between image and arrows (default=0.3)
+            colormap (int) : colormap (default=COLORMAP_JET)
+            thickness (int) : arrow thickness (default=10)
+            interpolation (int) : interpolation method (default=INTER_NEAREST)
+            scale (float) : image scaling to make arrows more visible (default=5.0)
+
+        Returns:
+            None
+        '''
+        # unpack data
+        data = self._computed.copy().astype(np.float16)
+
+        if type(self._images) == np.ndarray:
+            images = self._images.copy()
+        else:
+            images = np.zeros_like(data, dtype=np.uint8)
+        
+        # time offset images
+        if images.shape[0] > data.shape[0]:
+            images = images[1:]
+
+        # store shape
+        n, h, w, d = images.shape
+        h = round(h * scale)
+        w = round(w * scale)
+
+        # create drawn array
+        drawn = np.zeros((n, h, w, 3), dtype=np.uint8)
+        
+        # convert raw data to BGR in needed
+        if d == 1:
+            images = np.stack([images, images, images], axis=3)
+        
+        # apply threshold
+        mask = np.abs(data) > thresh
+        data[mask] = 0.0
+        
+        # min max data
+        data = (data * 127.5 / thresh + 127.5).astype(np.uint8)
+
+        # calculate coordinates
+        _, _h, _w, _ = data.shape
+        dh = h / _h
+        dw = w / _w
+
+        # draw images
+        print('Quivering Frames')
+        for i in tqdm(range(n)):
+            img = images[i]
+
+            # get colormap
+            colors = data[i]
+            if colormap != COLORMAP_COMPUTED:
+                colors = cv2.applyColorMap(data[i], colormap)
+
+            # resize
+            img = cv2.resize(img, (w, h), interpolation=interpolation)
+            arrows = np.zeros_like(img)
+
+            # draw quiver
+            for j in range(_h):
+                for k in range(_w):
+                    # get vector properties
+                    Y = round(dh * (0.5 + j))
+                    X = round(dw * (0.5 + k))
+                    U = round(dw * (data[i, j, k, 0] / 255.0 - 0.5))
+                    V = round(dh * (data[i, j, k, 1] / 255.0 - 0.5))
+
+                    C = (int(colors[j, k, 0]), int(colors[j, k, 1]), int(colors[j, k, 2]))
+
+                    # plot vector
+                    arrows = cv2.arrowedLine(arrows, (X, Y), (X + U, Y + V), color=C, thickness=thickness)
+
+            # blend and store
+            drawn[i] = (img * alpha + arrows * (1 - alpha)).astype(np.uint8)
 
         # store drawn data
         self._drawn = drawn
@@ -762,14 +848,14 @@ class BOS(object):
             indexes = np.arange(len(data), dtype=np.uint16)
 
         elif dataname == DATA_SPLIT:
-            n_ref, h, w, d = self._referances.shape
+            n_ref, h, w, d = self._references.shape
             n_img = self._images.shape[0]
 
             # create empty array
             data = np.zeros((n_ref + n_img, h, w, d), dtype=np.uint8)
 
             # assign data
-            data[0::2] = self._referances.copy()
+            data[0::2] = self._references.copy()
             data[1::2] = self._images.copy()
 
             # create indexes
@@ -809,7 +895,7 @@ class BOS(object):
         # output
         return data, indexes
 
-    def display(self, dataname:str=DATA_DRAWN, font:int=cv2.FONT_HERSHEY_SIMPLEX, font_scale:float=0.5, font_color:tuple[int, int, int]=COLOR_WHITE, font_thickness:int=1, font_pad:int=8, normalize:bool=True) -> None:
+    def display(self, dataname:str=DATA_DRAWN, font:int=cv2.FONT_HERSHEY_SIMPLEX, font_scale:float=0.5, font_color:tuple[int, int, int]=COLOR_WHITE, font_thickness:int=1, font_pad:int=8, normalize:bool=True, scale:float=-1.0) -> None:
         '''
         Display drawn data
 
@@ -821,6 +907,7 @@ class BOS(object):
             font_thickness (int) : overlay font thickness (default=1)
             font_pad (int) : overlay font padding from edges (default=8)
             normalize (bool) : normalize image (default=True)
+            scale (float) : image resizing, less then zero fixes (512 x 512) (default=-1.0)
 
         Returns:
             None
@@ -840,7 +927,12 @@ class BOS(object):
             img = imgs[ind]
 
             # resize
-            img = cv2.resize(img, (512, 512), interpolation=INTER_NEAREST)
+            if scale < 0:
+                img = cv2.resize(img, (512, 512), interpolation=INTER_NEAREST)
+            elif scale == 1.0:
+                pass
+            else:
+                img = cv2.resize(img, (0, 0), fx=scale, fy=scale, interpolation=INTER_NEAREST)
 
             # draw index
             if font != None:
@@ -904,8 +996,8 @@ class BOS(object):
             win (np.ndarray) : window to search for
             search (np.ndarray) : search area
             method (str) : drawing method (default=DISP_MAG)
-            thresh (float) : value maximum (defult=5.0)
-            alpha (float) : blending between raw and computed (defult=0.6)
+            thresh (float) : value maximum (default=5.0)
+            alpha (float) : blending between raw and computed (default=0.6)
             colormap (int) : colormap (default=COLORMAP_JET)
             masked (float) : treat low displacements as a mask (default=None)
 
@@ -956,7 +1048,7 @@ class BOS(object):
         # output
         return cell
 
-    def live(self, win_size:int=32, search_size:int=64, overlap:int=0, pad:bool=False, save_win_size:int=32, save_search_size:int=64, save_overlap:int=0, method:str=DISP_MAG, thresh:float=5.0, alpha:float=0.6, colormap:int=COLORMAP_JET, interplolation=INTER_NEAREST, masked:float=None, font:int=cv2.FONT_HERSHEY_SIMPLEX, font_scale:float=0.5, font_color:tuple[int, int, int]=COLOR_WHITE, font_thickness:int=1, font_pad:int=8) -> None:
+    def live(self, win_size:int=32, search_size:int=64, overlap:int=0, pad:bool=False, save_win_size:int=32, save_search_size:int=64, save_overlap:int=0, method:str=DISP_MAG, thresh:float=5.0, alpha:float=0.6, colormap:int=COLORMAP_JET, interpolation=INTER_NEAREST, masked:float=None, font:int=cv2.FONT_HERSHEY_SIMPLEX, font_scale:float=0.5, font_color:tuple[int, int, int]=COLOR_WHITE, font_thickness:int=1, font_pad:int=8) -> None:
         '''
         Live computing and rendering
 
@@ -971,10 +1063,10 @@ class BOS(object):
             save_overlap (int) : overlap between windows for saving (default=0)
 
             method (str) : drawing method (default=DISP_MAG)
-            thresh (float) : value maximum (defult=5.0)
-            alpha (float) : blending between raw and computed (defult=0.6)
+            thresh (float) : value maximum (default=5.0)
+            alpha (float) : blending between raw and computed (default=0.6)
             colormap (int) : colormap (default=COLORMAP_JET)
-            interplolation (int) : interplolation method (default=INTER_NEAREST)
+            interpolation (int) : interpolation method (default=INTER_NEAREST)
             masked (float) : treat low displacements as a mask (default=None)
 
             font (int) : overlay font, None displays no text (default=cv2.FONT_HERSHEY_SIMPLEX)
@@ -990,7 +1082,7 @@ class BOS(object):
         _, h, w, _ = self._raw.shape
 
         # setup computing values
-        raw_data, kernals, win_x, win_y, n, p = self._setup_compute(win_size, search_size, overlap, None, pad)
+        raw_data, kernels, win_x, win_y, n, p = self._setup_compute(win_size, search_size, overlap, None, pad)
 
         # create spiral
         coords = _spiral_coords(len(win_x), len(win_y))
@@ -1018,7 +1110,7 @@ class BOS(object):
                 win_col = win_x[col]
 
                 # pull window
-                win = kernals[ind:ind+1, win_row:win_row + win_size, win_col:win_col + win_size]
+                win = kernels[ind:ind+1, win_row:win_row + win_size, win_col:win_col + win_size]
 
                 # pull search area
                 search = raw_data[ind:ind+1, win_row:win_row+win_size + 2 * p, win_col:win_col + win_size + 2 * p]
@@ -1089,7 +1181,7 @@ class BOS(object):
 
                 # compute and draw frame
                 self.compute(win_size=save_win_size, search_size=save_search_size, overlap=save_overlap, pad=pad)
-                self.draw(method=method, thresh=thresh, alpha=alpha, colormap=colormap, interplolation=interplolation, masked=masked)
+                self.draw(method=method, thresh=thresh, alpha=alpha, colormap=colormap, interpolation=interpolation, masked=masked)
                 
                 # save frame
                 self.write('results')
@@ -1115,7 +1207,7 @@ class BOS(object):
             dataname (str) : data to write (default=DATA_DRAWN)
             fps (float) : video frames per second (default=30.0)
             extention (str) : image file extention (default='.jpg)
-            stacked (bool) : stack referance frame on top of frame (default=False)
+            stacked (bool) : stack reference frame on top of frame (default=False)
 
         Returns:
             None
@@ -1137,7 +1229,7 @@ class BOS(object):
             # store frames
             stacked[:, h:, :, :] = imgs[1:]
 
-            # store referance
+            # store reference
             stacked[:, :h, :, :] = imgs[0]
 
             # overwrite old image
